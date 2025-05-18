@@ -1,0 +1,9 @@
+<aura:component >
+<Lightning:layout verticalAlign="start" multipleRows="true">       
+ <Lightning:layoutItem flexibility="auto" padding="around-small" size="6">          
+     <Lightning:card title="1">             
+	 <p class="slds-p-horizontal_small">      Card 1      </p>   
+	 </Lightning:card>         
+	 </Lightning:layoutItem>
+    </Lightning:layout>
+</aura:component>

@@ -1,0 +1,8 @@
+<aura:component >
+    
+    <h1>Aura Component Practice Sessions</h1>
+	<p> Sush Good Morning!!! </p>
+
+    <hr></hr>
+<!--<c:ChinnuLearning Var1 = " Value from ChinnuLearning"/>-->
+</aura:component>

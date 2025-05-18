@@ -1,0 +1,23 @@
+<aura:component implements=
+                "force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction" access="global" >
+    <aura:attribute name= "Message" type= "string"/>
+    <aura:attribute name= "Text" type= "string"/>
+    <aura:handler name= "init" value="{!this}" action= "{!c.doInit}"/>
+    
+    Button  :{!v.Message}
+    <br></br>
+    <lightning:button label="Click" onclick="{!c.handleClick}"/>
+    <hr></hr>
+    
+    <lightning:button label="Text" onclick="{!c.handleClick}"/>
+    <div class="slds-m-around--xx-large">
+     <div class="slds-form--stacked">
+            <div class="slds-form-element">  
+                <div class="slds-form-element__control">
+                    <ui:inputText aura:id="txtEmail" label="Email"  placeholder="Email-Address" class="slds-input"/>
+                </div>
+            </div>            
+            <lightning:button variant="success" label="Validate Email" title="Validate Email" onclick="{!c.ValidateEmail}"/>                       
+        </div>
+    </div>
+</aura:component>

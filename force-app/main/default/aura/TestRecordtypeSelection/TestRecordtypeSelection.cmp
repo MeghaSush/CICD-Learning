@@ -1,0 +1,50 @@
+<aura:component  controller="SkRecordTypeSelectionController">
+
+	<aura:attribute name="mydataLst" type="Object"/>
+
+     <aura:handler name="init" value="{! this }" action="{! c.init }"/>
+
+  <lightning:layout multipleRows="true">
+    <div style="column-count: 2;">
+    <aura:iteration items="{!v.mydataLst}" var="records" >
+
+      <lightning:layoutItem padding="around-small" size="10">  
+
+        <div id="Tilu" class="slds-box">
+
+            <lightning:tile label="{!records.Name}">
+
+                <aura:set attribute="media">
+
+                   
+                </aura:set>
+
+                <dl class="slds-dl_horizontal">
+
+                    <dt class="slds-dl_horizontal__label">
+
+                        <p class="slds-truncate">{!records.Name}</p>
+
+                    </dt>
+
+                    <dd class="slds-dl_horizontal__detail slds-tile__meta">
+
+                        <p class="slds-truncate">{!records.Type}</p>
+                        <br> </br>
+
+                    </dd>
+
+                </dl>
+
+            </lightning:tile>
+
+        </div> 
+
+       </lightning:layoutItem>
+
+    </aura:iteration>
+      </div>
+
+ </lightning:layout>
+
+</aura:component>
