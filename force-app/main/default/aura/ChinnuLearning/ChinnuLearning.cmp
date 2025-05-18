@@ -1,0 +1,33 @@
+<aura:component >
+    <aura:attribute name="Var1" type="string"/>
+    <aura:handler name="init" value="{!this}" action="{!c.doinit}"/>
+    
+  <aura:attribute name="array" type="String[]"
+                  default ="[ 'v1', 'v2', 'v3']"/>
+    <aura:attribute name="list" type="list"
+                    default= "['List1', 'List2', 'List3' ]"/>
+    <aura:attribute name="Set" type="Set"
+                    default= "['Set1', 'Set2', 'Set3']"/>
+    <aura:attribute name="Map"  type="Map"
+                    default= "{a:'Map1', b:'Map2', c:'Map3'}"/>
+    <aura:attribute name="jsobject" type="Object"/>
+    <aura:attribute name="UserData" type="Chinnu1219.WrapperTest"/>
+    
+     Arrary Values : {!v.array[0]} {!v.array[1]}   
+                    
+    <hr/>
+    List Values : {!v.list[1]} {!v.list[2]}
+    <hr/>
+    Set Values : {!v.Set[2]} {!v.Set[1]}
+        <hr/>
+    Map values : {!v.Map.b} {!v.Map.a}
+    <hr/>
+    Length of List : {!v.list.length}
+    <hr/>
+    JsObject Values : {!v.jsobject.name} - {!v.jsobject.email}
+    <hr/>
+    Wrapper Values : {!v.UserData.mystring1} -{!v.UserData.myInteger1}
+        
+    
+   
+</aura:component>

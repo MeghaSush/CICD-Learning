@@ -1,0 +1,157 @@
+<!-- 
+    component Name      : ContactsDuplicatesIdentification
+    Author              : M Meghasree
+    Created Date        : 19th Febraury 2024
+    Functionality       : Company Employee New button override to Identify Duplicate Records Across Company Employees and Leads with Exact email match.
+-->
+
+
+<aura:component Controller ="ContactsDuplicateController"
+                implements="force:appHostable,lightning:actionOverride,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction,lightning:isUrlAddressable" access="global">
+    
+    <aura:attribute name="isModalOpen" type="boolean" default="false"/>
+    <aura:attribute name="contactList" type="List"/>
+    <aura:attribute name ="Acclist" type="List"/>
+    <aura:attribute name="DecodedUrl" type="String"/>
+    <aura:attribute name="AccountId" type="String"/>
+    <aura:attribute name="recId" type="String"/>
+    <aura:attribute name="AccrecId" type="String"/>
+    <aura:attribute name="URLContext" type="String"/>
+    <aura:attribute name="IsTrue" type="boolean" default="false"/>
+    <aura:attribute name="listViewId" type= "Id"/>
+    <aura:attribute name="Email" type="String" default=""/>
+    <aura:attribute name="LdEmail" type="String"/>
+    <aura:attribute name="leadList" type="List"/>
+    <aura:attribute name="state2" type="String"/>
+    <aura:attribute name="state1" type="String"/>
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+    <aura:attribute name="url" type="String"/> 
+    <aura:attribute name="pageReference" type="Object"/> 
+    <aura:attribute name="AccId" type="String"/>
+    <aura:attribute name="AccAdrssCountry" type="String"/>
+    <aura:attribute name="AccAdrssState" type="String"/>
+    <aura:attribute name="AccAdrssPostalCode" type="String"/>
+    <aura:attribute name="AccAdrssStreet" type="String"/>
+    <aura:attribute name="AccAdrssCity" type="String"/>
+    <aura:attribute name="AccAdrss" type="String"/>
+    <aura:attribute name="AccAdrssStateCode" type="String"/>
+    <aura:attribute name="AccAdrssCountryCode" type="String"/>
+    <aura:attribute name="AccPhone" type="String"/>
+    <aura:handler name="change" value="{!v.pageReference}" action="{!c.PageChange}" />
+    
+    
+    <lightning:recordEditForm aura:id="recordEditForm"
+                              objectApiName="Contact" onsuccess="{!c.recordView}">
+        <!-- Modal/Popup Box starts here-->
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <!-- Modal/Popup Box Header Starts here-->
+                <header class="slds-modal__header">
+                    <lightning:buttonIcon iconName="utility:close"
+                                          onclick="{!c.handleClose }"
+                                          alternativeText="close"
+                                          variant="bare-inverse"
+                                          class="slds-modal__close"/>
+                    <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Enter Valid Email Id</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                    <lightning:messages />
+                    <div style="padding: 25px;" >
+                        <ui:inputText aura:id="txtEmail" label="Email"  placeholder="Email-Address" class="slds-input" value="{!v.Email}" required="true"/>
+                        <!-- <lightning:input name="Email" aura:id="Email" class="fieldvalidate" type="email" value="{!v.Email}"placeholder="Please Enter Valid Email-Address" label="Email" pattern="[A-Za-z0-9._-]+@[a-z0-9-]+.[a-z]{2,}$" message-when-pattern-mismatch="Please enter a valid email" required="true"/>-->
+                        <!--  <lightning:input  label="Email"  type="email"  value="{!v.Email}" required="true"/>-->
+                        <!-- <lightning:inputField value="{!v.con.Email}" fieldName="Email" required="true" type="email" />-->
+                    </div>
+                </div>
+                <!--Modal/Popup Box Footer Starts here-->
+                <footer class="slds-modal__footer">
+                    <lightning:button variant="neutral"
+                                      label="Cancel"
+                                      onclick="{! c.handleClose }"/>
+                    <lightning:button variant="brand"
+                                      label="Next"
+                                      onclick="{!c.handleClick}"
+                                      />
+                    
+                </footer>
+            </div>
+            
+        </section>
+        <aura:if isTrue="{!v.isModalOpen}">
+            <!-- Screen to Display list of Contacts which are with same Email-->
+            <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <!-- Modal/Popup Box Header Starts here-->
+                    <header class="slds-modal__header">
+                        <lightning:buttonIcon iconName="utility:close"
+                                              onclick="{! c.handleClose }"
+                                              alternativeText="close"
+                                              variant="bare-inverse"
+                                              class="slds-modal__close"/>
+                        
+                        <b id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">List of Records with Similar Email Id's</b>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1" >
+                        <lightning:messages />
+                        <div style="padding: 25px;" >
+                        </div>
+                        <div class="c-container">
+                            <!--First Iteration-->
+                            <b><h1>List of Company Employees</h1></b> 
+                            <lightning:layout verticalAlign="start"  multipleRows="true">
+                                <aura:iteration  items= "{!v.contactList}" var="Email" >
+                                    
+                                    <lightning:layoutItem flexibility="auto" size="4" padding="around-small">
+                                        <b> <p><a data-contactid="{!Email.Id}" onclick="{! c.getDetails}" >{!Email.Name} </a></p></b>
+                                        <h3>     Record Type:{!Email.RecordType.Name}<br/></h3>
+                                        <h3>     Company   :{!Email.Account.Name}<br/></h3>
+                                        <h3>     Email      :{!Email.Email} <br/></h3>     
+                                        <h3>      Phone     :{!Email.Phone} <br/></h3>
+                                        <h3>    Address     :{!Email.Contact_Primary_Address__c} <br/></h3>
+                                        <h3>Days Since Last Activity:{!Email.Days_Since_Last_Activity__c}</h3><br></br><hr/> 
+                                    </lightning:layoutItem>
+                                </aura:iteration>
+                            </lightning:layout>
+                        </div>
+                        <div class="c-container">
+                            <!--Second Iteration -->
+                            <b><h1>List of Leads</h1></b> 
+                            <lightning:layout verticalAlign="start"  multipleRows="true">
+                                <aura:iteration items= "{!v.leadList}" var="Ldlist" >
+                                    <lightning:layoutItem flexibility="auto" size="4" padding="around-small">
+                                        <b> <p><a data-leadid= "{!Ldlist.Id}" onclick="{! c.getDetailsforLeads}" >{!Ldlist.Name}</a></p></b>
+                                        
+                                        <h3>  Record Type  :{!Ldlist.RecordType.Name}<br/></h3> 
+                                        <h3>     Company   :{!Ldlist.Company}<br/></h3>
+                                        <h3>     Email     :{!Ldlist.Email} <br/></h3>                
+                                        <h3>      Phone    :{!Ldlist.Phone}<br/> </h3>
+                                        <h3>       Status  :{!Ldlist.Status} <br/></h3>
+                                        <h3>   Address     :{!Ldlist.Street},{!Ldlist.City},{!Ldlist.State},{!Ldlist.PostalCode},{!Ldlist.Country}</h3><br></br><hr/>
+                                        
+                                    </lightning:layoutItem>
+                                    
+                                </aura:iteration>
+                            </lightning:layout>
+                        </div>
+                        
+                        <!--Modal/Popup Box Footer Starts here-->
+                        <footer class="slds-modal__footer">
+                            <lightning:button variant="neutral"
+                                              label="Cancel"
+                                              onclick="{! c.handleClose }"/>
+                            <lightning:button variant="brand"
+                                              label="Continue"
+                                              onclick="{! c.handleContinuetoCreatePage}"/>
+                        </footer>
+                        
+                    </div>
+                </div>
+            </section>
+        </aura:if>    
+    </lightning:recordEditForm>
+    
+    
+    
+    
+    
+</aura:component>
