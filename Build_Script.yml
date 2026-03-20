@@ -1,0 +1,161 @@
+pipeline:
+  name: Salesforce_CICD_QA_Deployment
+  identifier: sf_cicd_qa
+  projectIdentifier: SalesforceProject
+  orgIdentifier: default
+  tags: {}
+  stages:
+
+    # 🔹 STAGE 1: DELTA ANALYSIS + TEST DECISION
+    - stage:
+        name: Delta_Analysis
+        identifier: delta_analysis
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: k8s_connector
+              namespace: harness-ci
+              os: Linux
+
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Install_SF_CLI
+                  identifier: install_sf_cli
+                  spec:
+                    shell: Bash
+                    command: |
+                      npm install -g @salesforce/cli
+
+              - step:
+                  type: Run
+                  name: Retrieve_Metadata
+                  identifier: retrieve_metadata
+                  spec:
+                    shell: Bash
+                    command: |
+                      sf project retrieve start \
+                        -x manifest/package.xml \
+                        --target-metadata-dir mdapi_out \
+                        --json
+
+              - step:
+                  type: Run
+                  name: Delta_Check_And_Test_Logic
+                  identifier: delta_logic
+                  spec:
+                    shell: Bash
+                    command: |
+                      git fetch origin qa
+
+                      git diff --name-only origin/qa HEAD > changed_files.txt
+
+                      echo "===== Changed Files ====="
+                      cat changed_files.txt
+
+                      # 🔴 STEP 1: Validation Rules Check
+                      if grep -iq "validationRules" changed_files.txt; then
+                        echo "Validation rules changed → RunLocalTests"
+                        echo "TEST_LEVEL=RunLocalTests" >> $HARNESS_ENV_EXPORT
+                        exit 0
+                      fi
+
+                      # 🔵 STEP 2: Code Components Check
+                      if ! grep -Eq "classes|triggers|lwc|aura|pages|components" changed_files.txt; then
+                        echo "No code changes → NoTestRun"
+                        echo "TEST_LEVEL=NoTestRun" >> $HARNESS_ENV_EXPORT
+                        exit 0
+                      fi
+
+                      # 🟡 STEP 3: Test Classes Check
+                      grep -i "Test.cls" changed_files.txt > test_classes.txt || true
+
+                      if [ -s test_classes.txt ]; then
+                        TESTS=$(sed 's#.*/##' test_classes.txt | sed 's/.cls//' | paste -sd "," -)
+                        echo "Modified Test Classes Found: $TESTS"
+                        echo "TEST_LEVEL=RunSpecifiedTests" >> $HARNESS_ENV_EXPORT
+                        echo "TEST_CLASSES=$TESTS" >> $HARNESS_ENV_EXPORT
+                      else
+                        echo "No test classes modified → RunLocalTests"
+                        echo "TEST_LEVEL=RunLocalTests" >> $HARNESS_ENV_EXPORT
+                      fi
+
+              - step:
+                  type: SaveCache
+                  name: Cache_Metadata
+                  identifier: cache_metadata
+                  spec:
+                    key: mdapi-cache
+                    paths:
+                      - mdapi_out
+
+    # 🔹 STAGE 2: DEPLOY TO QA
+    - stage:
+        name: Deploy_QA
+        identifier: deploy_qa
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: k8s_connector
+              namespace: harness-ci
+              os: Linux
+
+          execution:
+            steps:
+              - step:
+                  type: RestoreCache
+                  name: Restore_Metadata
+                  identifier: restore_metadata
+                  spec:
+                    key: mdapi-cache
+
+              - step:
+                  type: Run
+                  name: Install_SF_CLI
+                  identifier: install_sf_cli_deploy
+                  spec:
+                    shell: Bash
+                    command: |
+                      npm install -g @salesforce/cli
+
+              - step:
+                  type: Run
+                  name: Auth_Salesforce_QA
+                  identifier: auth_sf
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo $SF_AUTH_URL > sfdx_auth.txt
+                      sf org login sfdx-url -f sfdx_auth.txt -a QA
+
+              - step:
+                  type: Run
+                  name: Deploy_With_Dynamic_Tests
+                  identifier: deploy_sf
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "Test Level: $TEST_LEVEL"
+                      echo "Test Classes: $TEST_CLASSES"
+
+                      if [ "$TEST_LEVEL" = "RunSpecifiedTests" ]; then
+                        sf project deploy start \
+                          --metadata-dir mdapi_out \
+                          --target-org QA \
+                          --test-level RunSpecifiedTests \
+                          --tests "$TEST_CLASSES" \
+                          --wait 60
+                      else
+                        sf project deploy start \
+                          --metadata-dir mdapi_out \
+                          --target-org QA \
+                          --test-level $TEST_LEVEL \
+                          --wait 60
+                      fi
