@@ -25,11 +25,15 @@ jobs:
       # ------------------------------------------
       # Authenticate using Salesforce CLI
       # ------------------------------------------  
-     - name: Authenticate to Salesforce
-       run: |
-       echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
-       sf org login jwt --username ${{ secrets.DEV_USERNAME }}--jwt-key-file server.key --client-id ${{ secrets.CONSUMER_KEY }} --instance-url ${{ vars.INSTANCE_URL }} --set-default
-      
+      - name: Authenticate to Salesforce
+        run: |
+          echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
+          sf org login jwt \
+            --username ${{ secrets.DEV_USERNAME }} \
+            --jwt-key-file server.key \
+            --client-id ${{ secrets.CONSUMER_KEY }} \
+            --instance-url ${{ vars.INSTANCE_URL }} \
+            --set-default
       # ------------------------------------------
       # Retrieve Metadata (MDAPI Format)
       # ------------------------------------------
