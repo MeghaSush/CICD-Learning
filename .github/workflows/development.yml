@@ -1,170 +1,194 @@
-# Updated CI/CD Pipeline based on mdapi_out + git diff strategy
+name: Salesforce CI Pipeline
 
+on:
+  push:
+    branches:
+      - develop
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-  # ------------------------------------------
-  # Retrieve Metadata (MDAPI Format)
-  # ------------------------------------------
-  - name: Retrieve Metadata
-    run: |
-      sf project retrieve start -x manifest/package.xml --target-metadata-dir mdapi_out --json
+    steps:
+      # ------------------------------------------
+      # Checkout Code (MANDATORY)
+      # ------------------------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  # ------------------------------------------
-  # Detect Changed Files using HEAD comparison
-  # ------------------------------------------
-  - name: Detect Changed Files
-    id: diffcheck
-    run: |
-      git diff --name-only origin/qa HEAD > changed_files.txt
-      echo "Changed files:"
-      cat changed_files.txt
+      # ------------------------------------------
+      # Install Salesforce CLI
+      # ------------------------------------------
+      - name: Install SF CLI
+        run: npm install -g @salesforce/cli
+        
+      # ------------------------------------------
+      # Authenticate using Salesforce CLI
+      # ------------------------------------------  
+     - name: Authenticate to Salesforce
+       run: |
+       echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
+       sf org login jwt --username ${{ secrets.DEV_USERNAME }}--jwt-key-file server.key --client-id ${{ secrets.CONSUMER_KEY }} --instance-url ${{ vars.INSTANCE_URL }} --set-default
+      
+      # ------------------------------------------
+      # Retrieve Metadata (MDAPI Format)
+      # ------------------------------------------
+      - name: Retrieve Metadata
+        run: |
+          sf project retrieve start -x manifest/package.xml --target-metadata-dir mdapi_out --json
 
-  # ------------------------------------------
-  # Validation Rule Check (Highest Priority)
-  # ------------------------------------------
-  - name: Check Validation Rule Changes
-    id: vrulecheck
-    run: |
-      if grep -i "validationRules" changed_files.txt; then
-        echo "has_validationrule_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_validationrule_changes=false" >> $GITHUB_OUTPUT
-      fi
+      # ------------------------------------------
+      # Detect Changed Files using HEAD comparison
+      # ------------------------------------------
+      - name: Detect Changed Files
+        id: diffcheck
+        run: |
+          git fetch origin qa || true
+          git diff --name-only origin/qa HEAD > changed_files.txt
+          echo "Changed files:"
+          cat changed_files.txt
 
-  # ------------------------------------------
-  # Other Metadata Checks
-  # ------------------------------------------
-  - name: Check Apex Classes
-    id: classcheck
-    run: |
-      if grep -i "classes" changed_files.txt; then
-        echo "has_class_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_class_changes=false" >> $GITHUB_OUTPUT
-      fi
+      # ------------------------------------------
+      # Validation Rule Check (Highest Priority)
+      # ------------------------------------------
+      - name: Check Validation Rule Changes
+        id: vrulecheck
+        run: |
+          if grep -i "validationRules" changed_files.txt; then
+            echo "has_validationrule_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_validationrule_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  - name: Check Apex Triggers
-    id: triggercheck
-    run: |
-      if grep -i "triggers" changed_files.txt; then
-        echo "has_trigger_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_trigger_changes=false" >> $GITHUB_OUTPUT
-      fi
+      # ------------------------------------------
+      # Other Metadata Checks
+      # ------------------------------------------
+      - name: Check Apex Classes
+        id: classcheck
+        run: |
+          if grep -i "classes" changed_files.txt; then
+            echo "has_class_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_class_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  - name: Check LWC
-    id: lwccheck
-    run: |
-      if grep -i "lwc" changed_files.txt; then
-        echo "has_lwc_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_lwc_changes=false" >> $GITHUB_OUTPUT
-      fi
+      - name: Check Apex Triggers
+        id: triggercheck
+        run: |
+          if grep -i "triggers" changed_files.txt; then
+            echo "has_trigger_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_trigger_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  - name: Check Aura
-    id: auracheck
-    run: |
-      if grep -i "aura" changed_files.txt; then
-        echo "has_aura_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_aura_changes=false" >> $GITHUB_OUTPUT
-      fi
+      - name: Check LWC
+        id: lwccheck
+        run: |
+          if grep -i "lwc" changed_files.txt; then
+            echo "has_lwc_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_lwc_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  - name: Check VF Pages
-    id: vfcheck
-    run: |
-      if grep -i "pages" changed_files.txt; then
-        echo "has_vf_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_vf_changes=false" >> $GITHUB_OUTPUT
-      fi
+      - name: Check Aura
+        id: auracheck
+        run: |
+          if grep -i "aura" changed_files.txt; then
+            echo "has_aura_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_aura_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  - name: Check VF Components
-    id: vfc_check
-    run: |
-      if grep -i "components" changed_files.txt; then
-        echo "has_vfc_changes=true" >> $GITHUB_OUTPUT
-      else
-        echo "has_vfc_changes=false" >> $GITHUB_OUTPUT
-      fi
+      - name: Check VF Pages
+        id: vfcheck
+        run: |
+          if grep -i "pages" changed_files.txt; then
+            echo "has_vf_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_vf_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  # ------------------------------------------
-  # Decide Test Strategy
-  # ------------------------------------------
+      - name: Check VF Components
+        id: vfc_check
+        run: |
+          if grep -i "components" changed_files.txt; then
+            echo "has_vfc_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_vfc_changes=false" >> $GITHUB_OUTPUT
+          fi
 
-  - name: Validation Rule → Run All Local Tests
-    id: vrulesuite
-    if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'true' }}
-    run: |
-      echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+      # ------------------------------------------
+      # Decide Test Strategy
+      # ------------------------------------------
 
-  - name: Apex / UI Changes → Smart Test Execution
-    id: testsuite
-    if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'false' && (
-            steps.classcheck.outputs.has_class_changes == 'true' ||
-            steps.triggercheck.outputs.has_trigger_changes == 'true' ||
-            steps.lwccheck.outputs.has_lwc_changes == 'true' ||
-            steps.auracheck.outputs.has_aura_changes == 'true' ||
-            steps.vfcheck.outputs.has_vf_changes == 'true' ||
-            steps.vfc_check.outputs.has_vfc_changes == 'true'
-        ) }}
-    run: |
-      TEST_CLASSES=$(grep -i "test" changed_files.txt | grep -i "classes" | sed 's#.*/##' | sed 's/.cls//g' | paste -sd ',')
+      - name: Validation Rule → Run All Local Tests
+        id: vrulesuite
+        if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'true' }}
+        run: |
+          echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
 
-      if [ -n "$TEST_CLASSES" ]; then
-        echo "tests=$TEST_CLASSES" >> $GITHUB_OUTPUT
-        echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
-        echo "Running specified tests: $TEST_CLASSES"
-      else
-        echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
-        echo "No test classes modified → Running all local tests"
-      fi
+      - name: Apex / UI Changes → Smart Test Execution
+        id: testsuite
+        if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'false' && (
+                steps.classcheck.outputs.has_class_changes == 'true' ||
+                steps.triggercheck.outputs.has_trigger_changes == 'true' ||
+                steps.lwccheck.outputs.has_lwc_changes == 'true' ||
+                steps.auracheck.outputs.has_aura_changes == 'true' ||
+                steps.vfcheck.outputs.has_vf_changes == 'true' ||
+                steps.vfc_check.outputs.has_vfc_changes == 'true'
+            ) }}
+        run: |
+          TEST_CLASSES=$(grep -i "test" changed_files.txt | grep -i "classes" | sed 's#.*/##' | sed 's/.cls//g' | paste -sd ',')
 
-  - name: Only Metadata Changes → No Tests
-    id: metadatasuite
-    if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'false' &&
-            steps.classcheck.outputs.has_class_changes == 'false' &&
-            steps.triggercheck.outputs.has_trigger_changes == 'false' &&
-            steps.lwccheck.outputs.has_lwc_changes == 'false' &&
-            steps.auracheck.outputs.has_aura_changes == 'false' &&
-            steps.vfcheck.outputs.has_vf_changes == 'false' &&
-            steps.vfc_check.outputs.has_vfc_changes == 'false' }}
-    run: |
-      echo "test-level=NoTestRun" >> $GITHUB_OUTPUT
+          if [ -n "$TEST_CLASSES" ]; then
+            echo "tests=$TEST_CLASSES" >> $GITHUB_OUTPUT
+            echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
+            echo "Running specified tests: $TEST_CLASSES"
+          else
+            echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+            echo "No test classes modified → Running all local tests"
+          fi
 
-  # ------------------------------------------
-  # Deployment
-  # ------------------------------------------
+      - name: Only Metadata Changes → No Tests
+        id: metadatasuite
+        if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'false' &&
+                steps.classcheck.outputs.has_class_changes == 'false' &&
+                steps.triggercheck.outputs.has_trigger_changes == 'false' &&
+                steps.lwccheck.outputs.has_lwc_changes == 'false' &&
+                steps.auracheck.outputs.has_aura_changes == 'false' &&
+                steps.vfcheck.outputs.has_vf_changes == 'false' &&
+                steps.vfc_check.outputs.has_vfc_changes == 'false' }}
+        run: |
+          echo "test-level=NoTestRun" >> $GITHUB_OUTPUT
 
-  - name: Deploy - No Tests
-    if: ${{ steps.metadatasuite.outputs.test-level == 'NoTestRun' }}
-    run: |
-      sf org login jwt --username ${{ secrets.DEPLOYMENT_USERNAME }} \
-        --jwt-key-file server.key \
-        --client-id ${{ secrets.CONSUMER_KEY }} \
-        --instance-url ${{ vars.INSTANCE_URL }} \
-        --set-default
+      # ------------------------------------------
+      # Authenticate (Common Step)
+      # ------------------------------------------
+      - name: Authenticate to Salesforce
+        run: |
+          echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
+          sf org login jwt \
+            --username ${{ secrets.DEPLOYMENT_USERNAME }} \
+            --jwt-key-file server.key \
+            --client-id ${{ secrets.CONSUMER_KEY }} \
+            --instance-url ${{ vars.INSTANCE_URL }} \
+            --set-default
 
-      sf project deploy start --metadata-dir mdapi_out --test-level NoTestRun
+      # ------------------------------------------
+      # Deployment
+      # ------------------------------------------
 
-  - name: Deploy - Run Local Tests
-    if: ${{ steps.vrulesuite.outputs.test-level == 'RunLocalTests' || steps.testsuite.outputs.test-level == 'RunLocalTests' }}
-    run: |
-      sf org login jwt --username ${{ secrets.DEPLOYMENT_USERNAME }} \
-        --jwt-key-file server.key \
-        --client-id ${{ secrets.CONSUMER_KEY }} \
-        --instance-url ${{ vars.INSTANCE_URL }} \
-        --set-default
+      - name: Deploy - No Tests
+        if: ${{ steps.metadatasuite.outputs.test-level == 'NoTestRun' }}
+        run: |
+          sf project deploy start --metadata-dir mdapi_out --test-level NoTestRun
 
-      sf project deploy start --metadata-dir mdapi_out --test-level RunLocalTests
+      - name: Deploy - Run Local Tests
+        if: ${{ steps.vrulesuite.outputs.test-level == 'RunLocalTests' || steps.testsuite.outputs.test-level == 'RunLocalTests' }}
+        run: |
+          sf project deploy start --metadata-dir mdapi_out --test-level RunLocalTests
 
-  - name: Deploy - Run Specified Tests
-    if: ${{ steps.testsuite.outputs.test-level == 'RunSpecifiedTests' }}
-    run: |
-      sf org login jwt --username ${{ secrets.DEPLOYMENT_USERNAME }} \
-        --jwt-key-file server.key \
-        --client-id ${{ secrets.CONSUMER_KEY }} \
-        --instance-url ${{ vars.INSTANCE_URL }} \
-        --set-default
-
-      sf project deploy start --metadata-dir mdapi_out --test-level RunSpecifiedTests --tests "${{ steps.testsuite.outputs.tests }}"
+      - name: Deploy - Run Specified Tests
+        if: ${{ steps.testsuite.outputs.test-level == 'RunSpecifiedTests' }}
+        run: |
+          sf project deploy start --metadata-dir mdapi_out --test-level RunSpecifiedTests --tests "${{ steps.testsuite.outputs.tests }}"
