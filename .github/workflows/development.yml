@@ -1,6 +1,6 @@
 # Updated CI/CD Pipeline based on mdapi_out + git diff strategy
 
-steps:
+
 
   # ------------------------------------------
   # Retrieve Metadata (MDAPI Format)
