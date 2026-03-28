@@ -40,7 +40,7 @@ jobs:
       # ------------------------------------------
       - name: Retrieve Metadata
         run: |
-          sf project retrieve start -x manifest/package.xml --target-metadata-dir mdapi_out --json
+          sf project retrieve start -x manifest/package.xml --target-metadata-dir mdapi_out --target-org megh-org --json
 
       # ------------------------------------------
       # Detect Changed Files using HEAD comparison
