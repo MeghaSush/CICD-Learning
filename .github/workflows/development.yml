@@ -174,7 +174,7 @@ jobs:
           sf org login jwt \
             --username ${{ secrets.DEPLOYMENT_USERNAME }} \
             --jwt-key-file server.key \
-            --client-id ${{ secrets.CONSUMER_KEY }} \
+            --client-id ${{ secrets.CONSUMER_KEYS }} \
             --instance-url ${{ vars.INSTANCE_URL }} \
             --set-default
 
