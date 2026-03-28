@@ -47,8 +47,8 @@ jobs:
       - name: Detect Changed Files
         id: diffcheck
         run: |
-          git fetch origin qa || true
-          git diff --name-only origin/qa HEAD > changed_files.txt
+          git fetch origin develop || true
+          git diff --name-only origin/develop HEAD > changed_files.txt
           echo "Changed files:"
           cat changed_files.txt
 
