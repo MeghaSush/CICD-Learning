@@ -23,7 +23,7 @@ jobs:
         run: npm install -g @salesforce/cli
         
       # ------------------------------------------
-      # Authenticate to Salesforce
+      # Authenticate using Salesforce CLI
       # ------------------------------------------  
       - name: Authenticate to Salesforce
         run: |
@@ -33,7 +33,13 @@ jobs:
             --jwt-key-file server.key \
             --client-id ${{ secrets.CONSUMER_KEY }} \
             --instance-url ${{ vars.INSTANCE_URL }} \
-            --set-default
+            --alias megh-org
+      # ------------------------------------------
+      # Retrieve Metadata (MDAPI Format)
+      # ------------------------------------------
+      - name: Retrieve Metadata
+        run: |
+          sf project retrieve start -x manifest/package.xml --target-metadata-dir mdapi_out --json
 
       # ------------------------------------------
       # Detect Changed Files using HEAD comparison
@@ -160,20 +166,37 @@ jobs:
           echo "test-level=NoTestRun" >> $GITHUB_OUTPUT
 
       # ------------------------------------------
-      # Deployment (from force-app directory)
+      # Authenticate (Common Step)
+      # ------------------------------------------
+      - name: Authenticate to Salesforce
+        run: |
+          echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
+          sf org login jwt \
+            --username ${{ secrets.DEPLOYMENT_USERNAME }} \
+            --jwt-key-file server.key \
+            --client-id ${{ secrets.CONSUMER_KEYS }} \
+            --instance-url ${{ vars.INSTANCE_URL }} \
+            --alias my-org
+
+      # ------------------------------------------
+      # Deployment
       # ------------------------------------------
 
       - name: Deploy - No Tests
         if: ${{ steps.metadatasuite.outputs.test-level == 'NoTestRun' }}
         run: |
-          sf project deploy start --source-dir force-app --test-level NoTestRun
+          sf project deploy start --metadata-dir mdapi_out --test-level NoTestRun
 
       - name: Deploy - Run Local Tests
         if: ${{ steps.vrulesuite.outputs.test-level == 'RunLocalTests' || steps.testsuite.outputs.test-level == 'RunLocalTests' }}
         run: |
-          sf project deploy start --source-dir force-app --test-level RunLocalTests
+          sf project deploy start \
+            --source-dir force-app \
+            --target-org my-org \
+            --test-level RunLocalTests \
+            --wait 30
 
       - name: Deploy - Run Specified Tests
         if: ${{ steps.testsuite.outputs.test-level == 'RunSpecifiedTests' }}
         run: |
-          sf project deploy start --source-dir force-app --test-level RunSpecifiedTests --tests "${{ steps.testsuite.outputs.tests }}"
+          sf project deploy start --metadata-dir mdapi_out --test-level RunSpecifiedTests --tests "${{ steps.testsuite.outputs.tests }}"
