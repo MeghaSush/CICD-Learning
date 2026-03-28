@@ -23,9 +23,9 @@ jobs:
         run: npm install -g @salesforce/cli
         
       # ------------------------------------------
-      # Authenticate using Salesforce CLI
+      # Authenticate to Development Org (Retrieve)
       # ------------------------------------------  
-      - name: Authenticate to Salesforce
+      - name: Authenticate to Development Org
         run: |
           echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
           sf org login jwt \
@@ -34,6 +34,7 @@ jobs:
             --client-id ${{ secrets.CONSUMER_KEY }} \
             --instance-url ${{ vars.INSTANCE_URL }} \
             --alias megh-org
+
       # ------------------------------------------
       # Retrieve Metadata (MDAPI Format)
       # ------------------------------------------
@@ -166,17 +167,17 @@ jobs:
           echo "test-level=NoTestRun" >> $GITHUB_OUTPUT
 
       # ------------------------------------------
-      # Authenticate (Common Step)
+      # Authenticate to Deployment Org
       # ------------------------------------------
-      - name: Authenticate to Salesforce
+      - name: Authenticate to Deployment Org
         run: |
           echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
           sf org login jwt \
             --username ${{ secrets.DEPLOYMENT_USERNAME }} \
             --jwt-key-file server.key \
-            --client-id ${{ secrets.CONSUMER_KEYS }} \
+            --client-id ${{ secrets.CONSUMER_KEY }} \
             --instance-url ${{ vars.INSTANCE_URL }} \
-            --alias my-org
+            --alias deploy-org
 
       # ------------------------------------------
       # Deployment
@@ -187,25 +188,25 @@ jobs:
         run: |
           sf project deploy start \
             --source-dir force-app \
-            --target-org my-org-org \
+            --target-org deploy-org \
             --test-level NoTestRun \
             --wait 30
-			
+
       - name: Deploy - Run Local Tests
         if: ${{ steps.vrulesuite.outputs.test-level == 'RunLocalTests' || steps.testsuite.outputs.test-level == 'RunLocalTests' }}
         run: |
           sf project deploy start \
             --source-dir force-app \
-            --target-org my-org \
+            --target-org deploy-org \
             --test-level RunLocalTests \
             --wait 30
 
       - name: Deploy - Run Specified Tests
         if: ${{ steps.testsuite.outputs.test-level == 'RunSpecifiedTests' }}
         run: |
-          sf project deploy start --metadata-dir mdapi_out --test-level RunSpecifiedTests --tests "${{ steps.testsuite.outputs.tests }}"
-           sf project deploy start \
+          sf project deploy start \
             --source-dir force-app \
-            --target-org my-org \
+            --target-org deploy-org \
             --test-level RunSpecifiedTests \
+            --tests "${{ steps.testsuite.outputs.tests }}" \
             --wait 30
