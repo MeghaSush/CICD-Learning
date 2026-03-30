@@ -11,7 +11,7 @@ jobs:
 
     steps:
       # ------------------------------------------
-      # Checkout Code (MANDATORY)
+      # Checkout Code
       # ------------------------------------------
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -21,10 +21,10 @@ jobs:
       # ------------------------------------------
       - name: Install SF CLI
         run: npm install -g @salesforce/cli
-        
+
       # ------------------------------------------
-      # Authenticate to Development Org (Retrieve)
-      # ------------------------------------------  
+      # Authenticate to Development Org
+      # ------------------------------------------
       - name: Authenticate to Development Org
         run: |
           echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
@@ -36,14 +36,14 @@ jobs:
             --alias megh-org
 
       # ------------------------------------------
-      # Retrieve Metadata (MDAPI Format)
+      # Retrieve Metadata
       # ------------------------------------------
       - name: Retrieve Metadata
         run: |
           sf project retrieve start -x manifest/package.xml --target-metadata-dir mdapi_out --target-org megh-org --json
 
       # ------------------------------------------
-      # Detect Changed Files using HEAD comparison
+      # Detect Changed Files
       # ------------------------------------------
       - name: Detect Changed Files
         id: diffcheck
@@ -54,7 +54,43 @@ jobs:
           cat changed_files.txt
 
       # ------------------------------------------
-      # Validation Rule Check (Highest Priority)
+      # Build Delta Package
+      # ------------------------------------------
+      - name: Build Delta Package
+        run: |
+          mkdir -p delta_mdapi
+
+          while read file; do
+            if [ -f "mdapi_out/$file" ]; then
+              mkdir -p "delta_mdapi/$(dirname $file)"
+              cp "mdapi_out/$file" "delta_mdapi/$file"
+            fi
+          done < changed_files.txt
+
+          echo "Delta package created"
+          ls -R delta_mdapi
+
+      # ------------------------------------------
+      # Copy package.xml
+      # ------------------------------------------
+      - name: Copy package.xml
+        run: |
+          cp mdapi_out/package.xml delta_mdapi/ || true
+
+      # ------------------------------------------
+      # Check if Delta is Empty
+      # ------------------------------------------
+      - name: Check if Delta is Empty
+        id: checkdelta
+        run: |
+          if [ -z "$(ls -A delta_mdapi)" ]; then
+            echo "no_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "no_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------
+      # Validation Rule Check
       # ------------------------------------------
       - name: Check Validation Rule Changes
         id: vrulecheck
@@ -125,14 +161,13 @@ jobs:
       # ------------------------------------------
       # Decide Test Strategy
       # ------------------------------------------
-
       - name: Validation Rule → Run All Local Tests
         id: vrulesuite
         if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'true' }}
         run: |
           echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
 
-      - name: Apex / UI Changes → Smart Test Execution
+      - name: Apex/UI Changes → Smart Test Execution
         id: testsuite
         if: ${{ steps.vrulecheck.outputs.has_validationrule_changes == 'false' && (
                 steps.classcheck.outputs.has_class_changes == 'true' ||
@@ -148,10 +183,8 @@ jobs:
           if [ -n "$TEST_CLASSES" ]; then
             echo "tests=$TEST_CLASSES" >> $GITHUB_OUTPUT
             echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
-            echo "Running specified tests: $TEST_CLASSES"
           else
             echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
-            echo "No test classes modified → Running all local tests"
           fi
 
       - name: Only Metadata Changes → No Tests
@@ -180,33 +213,30 @@ jobs:
             --alias deploy-org
 
       # ------------------------------------------
-      # Deployment
+      # Deploy Delta Package
       # ------------------------------------------
-
-      - name: Deploy - No Tests
-        if: ${{ steps.metadatasuite.outputs.test-level == 'NoTestRun' }}
+      - name: Deploy Delta Package
+        if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
         run: |
-          sf project deploy start \
-            --source-dir force-app \
-            --target-org deploy-org \
-            --test-level NoTestRun \
-            --wait 30
+          if [[ "${{ steps.testsuite.outputs.test-level }}" == "RunSpecifiedTests" ]]; then
+            sf project deploy start \
+              --metadata-dir delta_mdapi \
+              --target-org deploy-org \
+              --test-level RunSpecifiedTests \
+              --tests "${{ steps.testsuite.outputs.tests }}" \
+              --wait 30
 
-      - name: Deploy - Run Local Tests
-        if: ${{ steps.vrulesuite.outputs.test-level == 'RunLocalTests' || steps.testsuite.outputs.test-level == 'RunLocalTests' }}
-        run: |
-          sf project deploy start \
-            --source-dir force-app \
-            --target-org deploy-org \
-            --test-level RunLocalTests \
-            --wait 30
+          elif [[ "${{ steps.vrulesuite.outputs.test-level }}" == "RunLocalTests" || "${{ steps.testsuite.outputs.test-level }}" == "RunLocalTests" ]]; then
+            sf project deploy start \
+              --metadata-dir delta_mdapi \
+              --target-org deploy-org \
+              --test-level RunLocalTests \
+              --wait 30
 
-      - name: Deploy - Run Specified Tests
-        if: ${{ steps.testsuite.outputs.test-level == 'RunSpecifiedTests' }}
-        run: |
-          sf project deploy start \
-            --source-dir force-app \
-            --target-org deploy-org \
-            --test-level RunSpecifiedTests \
-            --tests "${{ steps.testsuite.outputs.tests }}" \
-            --wait 30
+          else
+            sf project deploy start \
+              --metadata-dir delta_mdapi \
+              --target-org deploy-org \
+              --test-level NoTestRun \
+              --wait 30
+          fi
