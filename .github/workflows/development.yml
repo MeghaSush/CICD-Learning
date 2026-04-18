@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: read
   
 jobs:
   build-and-promote:
@@ -199,16 +200,16 @@ jobs:
     # ------------------------------------------
     # Create PR → Release
     # ------------------------------------------
-    - name: Create PR to Release
-      if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
-      run: |
-        gh pr create \
-          --base release \
-          --head ${{ env.branch_name }} \
-          --title "Auto Delta PR from Develop" \
-          --body "Includes only modified components"
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- name: Create PR to Release
+  if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
+  run: |
+    gh pr create \
+      --base release \
+      --head ${{ env.branch_name }} \
+      --title "Auto Delta PR from Develop" \
+      --body "Includes only modified components"
+  env:
+    GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
     # ------------------------------------------
     # Authenticate to UAT
@@ -265,13 +266,13 @@ jobs:
     # ------------------------------------------
     # Create PR → Master
     # ------------------------------------------
-    - name: Create PR to Master
-      if: success()
-      run: |
-        gh pr create \
-          --base master \
-          --head release \
-          --title "Release → Master Promotion" \
-          --body "Validated changes ready for production"
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- name: Create PR to Master
+  if: success()
+  run: |
+    gh pr create \
+      --base master \
+      --head release \
+      --title "Release → Master Promotion" \
+      --body "Validated changes ready for production"
+  env:
+    GH_TOKEN: ${{ secrets.PAT_TOKEN }}
