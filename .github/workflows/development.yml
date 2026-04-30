@@ -52,23 +52,12 @@ jobs:
       # ------------------------------------------
       - name: Extract Changed Metadata
         run: |
-          # Apex
           grep -i "force-app/.*/classes/.*\.cls" changed_files.txt | sed 's#.*/##' | sed 's/.cls//g' > changed_classes.txt || true
           grep -i "force-app/.*/triggers/.*\.trigger" changed_files.txt | sed 's#.*/##' | sed 's/.trigger//g' > changed_triggers.txt || true
-
-          # LWC
           grep -i "force-app/.*/lwc/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt || true
-
-          # Aura
           grep -i "force-app/.*/aura/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt || true
-
-          # VF Pages
           grep -i "force-app/.*/pages/.*\.page" changed_files.txt | sed 's#.*/##' | sed 's/.page//g' > changed_vf_pages.txt || true
-
-          # VF Components
           grep -i "force-app/.*/components/.*\.component" changed_files.txt | sed 's#.*/##' | sed 's/.component//g' > changed_vf_components.txt || true
-
-          # Validation Rules
           grep -i "validationRules" changed_files.txt > changed_validation_rules.txt || true
 
       # ------------------------------------------
@@ -79,7 +68,7 @@ jobs:
           grep -l "@isTest" force-app/main/default/classes/*.cls | sed 's#.*/##' | sed 's/.cls//g' > all_test_classes.txt || true
 
       # ------------------------------------------
-      # Intelligent Test Mapping (Enhanced)
+      # Intelligent Test Mapping
       # ------------------------------------------
       - name: Map Tests
         id: testmapping
@@ -117,9 +106,6 @@ jobs:
           done < all_test_classes.txt
 
           sort -u selected_tests.txt > final_tests.txt
-
-          echo "Mapped Tests:"
-          cat final_tests.txt || true
 
           TESTS=$(paste -sd ',' final_tests.txt)
 
@@ -199,6 +185,22 @@ jobs:
           echo "branch_name=$BRANCH" >> $GITHUB_ENV
 
       # ------------------------------------------
+      # Validate Release Branch
+      # ------------------------------------------
+      - name: Validate Release Branch
+        if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
+        run: |
+          git fetch origin
+
+          if ! git rev-parse origin/release >/dev/null 2>&1; then
+            echo "Release branch not found. Creating from develop..."
+            git checkout -b release
+            git push origin release
+          else
+            echo "Release branch exists"
+          fi
+
+      # ------------------------------------------
       # Create PR → Release
       # ------------------------------------------
       - name: Create PR to Release
@@ -226,14 +228,12 @@ jobs:
             --alias uat-org
 
       # ------------------------------------------
-      # VALIDATE ONLY Deployment
+      # Validate Deployment to UAT
       # ------------------------------------------
       - name: Validate Deployment to UAT
         if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
         run: |
           if [[ "${{ steps.vrulecheck.outputs.run_all }}" == "true" ]]; then
-
-            echo "Validation Rules changed → RunLocalTests"
 
             sf project deploy validate \
               --metadata-dir delta_mdapi \
@@ -243,8 +243,6 @@ jobs:
 
           elif [[ "${{ steps.testmapping.outputs.test-level }}" == "RunSpecifiedTests" && -n "${{ steps.testmapping.outputs.tests }}" ]]; then
 
-            echo "Running mapped test classes"
-
             sf project deploy validate \
               --metadata-dir delta_mdapi \
               --target-org uat-org \
@@ -253,8 +251,6 @@ jobs:
               --wait 30
 
           else
-
-            echo "Fallback → RunLocalTests"
 
             sf project deploy validate \
               --metadata-dir delta_mdapi \
