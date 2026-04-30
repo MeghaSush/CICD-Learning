@@ -192,6 +192,8 @@ jobs:
 
           git add .
           git commit -m "Delta commit from develop (${{ github.sha }})"
+
+          git push origin --delete $BRANCH 2>/dev/null || true
           git push origin $BRANCH
 
           echo "branch_name=$BRANCH" >> $GITHUB_ENV
