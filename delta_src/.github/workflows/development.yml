@@ -1,0 +1,279 @@
+name: Salesforce CI/CD Pipeline (Enhanced Intelligent Coverage + Promotion)
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  build-and-promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------
+      # Checkout FULL Repo
+      # ------------------------------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------------------------------------
+      # Install Tools
+      # ------------------------------------------
+      - name: Install Tools
+        run: |
+          npm install -g @salesforce/cli
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      # ------------------------------------------
+      # Detect Changed Files (MULTI-COMMIT SAFE)
+      # ------------------------------------------
+      - name: Detect Changed Files
+        id: diffcheck
+        run: |
+          echo "Before: ${{ github.event.before }}"
+          echo "After : ${{ github.sha }}"
+
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
+          git diff --name-status ${{ github.event.before }} ${{ github.sha }} > changes_with_status.txt
+
+          echo "Changed files:"
+          cat changed_files.txt
+
+      # ------------------------------------------
+      # Extract Changed Metadata
+      # ------------------------------------------
+      - name: Extract Changed Metadata
+        run: |
+          # Apex
+          grep -i "force-app/.*/classes/.*\.cls" changed_files.txt | sed 's#.*/##' | sed 's/.cls//g' > changed_classes.txt || true
+          grep -i "force-app/.*/triggers/.*\.trigger" changed_files.txt | sed 's#.*/##' | sed 's/.trigger//g' > changed_triggers.txt || true
+
+          # LWC
+          grep -i "force-app/.*/lwc/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt || true
+
+          # Aura
+          grep -i "force-app/.*/aura/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt || true
+
+          # VF Pages
+          grep -i "force-app/.*/pages/.*\.page" changed_files.txt | sed 's#.*/##' | sed 's/.page//g' > changed_vf_pages.txt || true
+
+          # VF Components
+          grep -i "force-app/.*/components/.*\.component" changed_files.txt | sed 's#.*/##' | sed 's/.component//g' > changed_vf_components.txt || true
+
+          # Validation Rules
+          grep -i "validationRules" changed_files.txt > changed_validation_rules.txt || true
+
+      # ------------------------------------------
+      # Identify All Test Classes
+      # ------------------------------------------
+      - name: Identify Test Classes
+        run: |
+          grep -l "@isTest" force-app/main/default/classes/*.cls | sed 's#.*/##' | sed 's/.cls//g' > all_test_classes.txt || true
+
+      # ------------------------------------------
+      # Intelligent Test Mapping (Enhanced)
+      # ------------------------------------------
+      - name: Map Tests
+        id: testmapping
+        run: |
+          > selected_tests.txt
+
+          while read testclass; do
+            FILE="force-app/main/default/classes/${testclass}.cls"
+            [ -f "$FILE" ] || continue
+
+            while read changedclass; do
+              grep -qw "$changedclass" "$FILE" && echo "$testclass" >> selected_tests.txt
+            done < changed_classes.txt
+
+            while read trigger; do
+              grep -qw "$trigger" "$FILE" && echo "$testclass" >> selected_tests.txt
+            done < changed_triggers.txt
+
+            while read lwc; do
+              grep -qw "$lwc" "$FILE" && echo "$testclass" >> selected_tests.txt
+            done < changed_lwc.txt
+
+            while read aura; do
+              grep -qw "$aura" "$FILE" && echo "$testclass" >> selected_tests.txt
+            done < changed_aura.txt
+
+            while read vf; do
+              grep -qw "$vf" "$FILE" && echo "$testclass" >> selected_tests.txt
+            done < changed_vf_pages.txt
+
+            while read vfc; do
+              grep -qw "$vfc" "$FILE" && echo "$testclass" >> selected_tests.txt
+            done < changed_vf_components.txt
+
+          done < all_test_classes.txt
+
+          sort -u selected_tests.txt > final_tests.txt
+
+          echo "Mapped Tests:"
+          cat final_tests.txt || true
+
+          TESTS=$(paste -sd ',' final_tests.txt)
+
+          if [ -n "$TESTS" ]; then
+            echo "tests=$TESTS" >> $GITHUB_OUTPUT
+            echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
+          else
+            echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------
+      # Validation Rule Override
+      # ------------------------------------------
+      - name: Check Validation Rule Changes
+        id: vrulecheck
+        run: |
+          if [ -s changed_validation_rules.txt ]; then
+            echo "run_all=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_all=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------
+      # Build Delta Source
+      # ------------------------------------------
+      - name: Build Delta Source
+        run: |
+          mkdir -p delta_src
+
+          while read file; do
+            [ -f "$file" ] || continue
+            mkdir -p "delta_src/$(dirname $file)"
+            cp "$file" "delta_src/$file"
+          done < changed_files.txt
+
+      # ------------------------------------------
+      # Convert to MDAPI
+      # ------------------------------------------
+      - name: Convert to MDAPI
+        run: |
+          sf project convert source \
+            --source-dir delta_src \
+            --output-dir delta_mdapi
+
+      # ------------------------------------------
+      # Check Empty Delta
+      # ------------------------------------------
+      - name: Check Delta Empty
+        id: checkdelta
+        run: |
+          if [ ! -f delta_mdapi/package.xml ]; then
+            echo "no_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "no_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------
+      # Create Delta Branch
+      # ------------------------------------------
+      - name: Create Delta Branch
+        if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
+        run: |
+          BRANCH=delta-release-${{ github.run_number }}
+
+          git checkout -b $BRANCH
+          cp -r delta_src/* . || true
+
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@github.com"
+
+          git add .
+          git commit -m "Delta commit from develop (${{ github.sha }})"
+
+          git push origin --delete $BRANCH 2>/dev/null || true
+          git push origin $BRANCH
+
+          echo "branch_name=$BRANCH" >> $GITHUB_ENV
+
+      # ------------------------------------------
+      # Create PR → Release
+      # ------------------------------------------
+      - name: Create PR to Release
+        if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
+        run: |
+          gh pr create \
+            --base release \
+            --head ${{ env.branch_name }} \
+            --title "Auto Delta PR from Develop" \
+            --body "Includes only modified components"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      # ------------------------------------------
+      # Authenticate to UAT
+      # ------------------------------------------
+      - name: Authenticate UAT
+        run: |
+          echo "${{ secrets.JWT_SECRET_KEY }}" > server.key
+          sf org login jwt \
+            --username ${{ secrets.DEPLOYMENT_USERNAME }} \
+            --jwt-key-file server.key \
+            --client-id ${{ secrets.CONSUMER_KEY }} \
+            --instance-url ${{ vars.INSTANCE_URL }} \
+            --alias uat-org
+
+      # ------------------------------------------
+      # VALIDATE ONLY Deployment
+      # ------------------------------------------
+      - name: Validate Deployment to UAT
+        if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
+        run: |
+          if [[ "${{ steps.vrulecheck.outputs.run_all }}" == "true" ]]; then
+
+            echo "Validation Rules changed → RunLocalTests"
+
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
+              --test-level RunLocalTests \
+              --wait 30
+
+          elif [[ "${{ steps.testmapping.outputs.test-level }}" == "RunSpecifiedTests" && -n "${{ steps.testmapping.outputs.tests }}" ]]; then
+
+            echo "Running mapped test classes"
+
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
+              --test-level RunSpecifiedTests \
+              --tests "${{ steps.testmapping.outputs.tests }}" \
+              --wait 30
+
+          else
+
+            echo "Fallback → RunLocalTests"
+
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
+              --test-level RunLocalTests \
+              --wait 30
+
+          fi
+
+      # ------------------------------------------
+      # Create PR → Master
+      # ------------------------------------------
+      - name: Create PR to Master
+        if: success()
+        run: |
+          gh pr create \
+            --base master \
+            --head release \
+            --title "Release → Master Promotion" \
+            --body "Validated changes ready for production"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
