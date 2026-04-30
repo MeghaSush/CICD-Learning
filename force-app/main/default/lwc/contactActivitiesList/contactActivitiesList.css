@@ -1,0 +1,59 @@
+.activities-container {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    border-bottom: 1px solid #e5e5e5;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.activity-item:hover {
+    background-color: #f3f2f2;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-subject {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #0070d2;
+    margin-bottom: 0.25rem;
+}
+
+.activity-type-badge {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+}
+
+.activity-icon {
+    margin-top: 0.25rem;
+}
+
+.description-text {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+/* Scrollbar styling */
+.activities-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.activities-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.activities-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.activities-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

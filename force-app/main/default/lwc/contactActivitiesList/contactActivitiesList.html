@@ -1,0 +1,123 @@
+<template>
+    <lightning-card title="Activities" icon-name="standard:task">
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="slds-text-align_center slds-p-around_medium">
+                <lightning-spinner alternative-text="Loading activities..." size="small"></lightning-spinner>
+            </div>
+        </template>
+
+        <!-- Error Message -->
+        <template if:true={error}>
+            <div class="slds-p-around_medium">
+                <div class="slds-text-color_error">
+                    <lightning-icon icon-name="utility:error" size="small" class="slds-m-right_x-small"></lightning-icon>
+                    Error loading activities: {error.body.message}
+                </div>
+            </div>
+        </template>
+
+        <!-- No Activities Message -->
+        <template if:true={noActivities}>
+            <div class="slds-p-around_medium slds-text-align_center">
+                <lightning-icon icon-name="utility:info" size="small" class="slds-m-right_x-small"></lightning-icon>
+                <p class="slds-text-color_weak">No activities found for this contact.</p>
+            </div>
+        </template>
+
+        <!-- Activities List -->
+        <template if:true={hasActivities}>
+            <div class="activities-container">
+                <template for:each={activities} for:item="activity">
+                    <div key={activity.id} class="activity-item" data-id={activity.id} onclick={handleActivityClick}>
+                        <div class="slds-grid slds-gutters slds-p-around_small">
+                            <!-- Activity Icon -->
+                            <div class="slds-col slds-size_1-of-12">
+                                <lightning-icon 
+                                    icon-name={activity.type}
+                                    alternative-text={activity.type}
+                                    size="small"
+                                    class="activity-icon">
+                                </lightning-icon>
+                            </div>
+
+                            <!-- Activity Details -->
+                            <div class="slds-col slds-size_11-of-12">
+                                <div class="slds-grid slds-grid_vertical-align-start">
+                                    <div class="slds-col">
+                                        <!-- Subject and Type Badge -->
+                                        <div class="slds-grid slds-grid_align-spread">
+                                            <div>
+                                                <h3 class="activity-subject">{activity.subject}</h3>
+                                                <span class="slds-badge slds-badge_lightest activity-type-badge">
+                                                    {activity.type}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Activity Metadata -->
+                                        <div class="slds-text-body_small slds-m-top_x-small">
+                                            <div class="slds-grid slds-wrap">
+                                                <!-- Activity Date -->
+                                                <template if:true={activity.activityDate}>
+                                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_xx-small">
+                                                        <lightning-icon icon-name="utility:event" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                        <span class="slds-text-color_weak">Date: </span>
+                                                        {activity.formattedDate}
+                                                    </div>
+                                                </template>
+
+                                                <!-- Owner -->
+                                                <template if:true={activity.ownerName}>
+                                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_xx-small">
+                                                        <lightning-icon icon-name="utility:user" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                        <span class="slds-text-color_weak">Owner: </span>
+                                                        {activity.ownerName}
+                                                    </div>
+                                                </template>
+
+                                                <!-- Task Status -->
+                                                <template if:true={activity.status}>
+                                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_xx-small">
+                                                        <lightning-icon icon-name="utility:check" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                        <span class="slds-text-color_weak">Status: </span>
+                                                        {activity.status}
+                                                    </div>
+                                                </template>
+
+                                                <!-- Task Priority -->
+                                                <template if:true={activity.priority}>
+                                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_xx-small">
+                                                        <lightning-icon icon-name="utility:priority" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                        <span class="slds-text-color_weak">Priority: </span>
+                                                        {activity.priority}
+                                                    </div>
+                                                </template>
+
+                                                <!-- Event Location -->
+                                                <template if:true={activity.location}>
+                                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_xx-small">
+                                                        <lightning-icon icon-name="utility:location" size="xx-small" class="slds-m-right_xx-small"></lightning-icon>
+                                                        <span class="slds-text-color_weak">Location: </span>
+                                                        {activity.location}
+                                                    </div>
+                                                </template>
+                                            </div>
+
+                                            <!-- Description -->
+                                            <template if:true={activity.description}>
+                                                <div class="slds-m-top_x-small">
+                                                    <p class="slds-text-color_weak description-text">{activity.description}</p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </lightning-card>
+</template>
