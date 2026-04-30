@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       # ------------------------------------------
-      # Install Necessary Tools
+      # Install Tools
       # ------------------------------------------
       - name: Install Tools
         run: |
@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install -y gh
 
       # ------------------------------------------
-      # Detect Changed Files (MULTI-COMMIT SAFE)
+      # Detect Changed Files
       # ------------------------------------------
       - name: Detect Changed Files
         id: diffcheck
@@ -44,7 +44,6 @@ jobs:
           git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
           git diff --name-status ${{ github.event.before }} ${{ github.sha }} > changes_with_status.txt
 
-          echo "Changed files:"
           cat changed_files.txt
 
       # ------------------------------------------
@@ -52,23 +51,23 @@ jobs:
       # ------------------------------------------
       - name: Extract Changed Metadata
         run: |
-          grep -i "force-app/.*/classes/.*\.cls" changed_files.txt | sed 's#.*/##' | sed 's/.cls//g' > changed_classes.txt || true
-          grep -i "force-app/.*/triggers/.*\.trigger" changed_files.txt | sed 's#.*/##' | sed 's/.trigger//g' > changed_triggers.txt || true
+          grep -i "force-app/.*/classes/.*\.cls" changed_files.txt | sed 's#.*/##;s/.cls//' > changed_classes.txt || true
+          grep -i "force-app/.*/triggers/.*\.trigger" changed_files.txt | sed 's#.*/##;s/.trigger//' > changed_triggers.txt || true
           grep -i "force-app/.*/lwc/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt || true
           grep -i "force-app/.*/aura/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt || true
-          grep -i "force-app/.*/pages/.*\.page" changed_files.txt | sed 's#.*/##' | sed 's/.page//g' > changed_vf_pages.txt || true
-          grep -i "force-app/.*/components/.*\.component" changed_files.txt | sed 's#.*/##' | sed 's/.component//g' > changed_vf_components.txt || true
+          grep -i "force-app/.*/pages/.*\.page" changed_files.txt | sed 's#.*/##;s/.page//' > changed_vf_pages.txt || true
+          grep -i "force-app/.*/components/.*\.component" changed_files.txt | sed 's#.*/##;s/.component//' > changed_vf_components.txt || true
           grep -i "validationRules" changed_files.txt > changed_validation_rules.txt || true
 
       # ------------------------------------------
-      # Identify All Test Classes
+      # Identify Test Classes
       # ------------------------------------------
       - name: Identify Test Classes
         run: |
-          grep -l "@isTest" force-app/main/default/classes/*.cls | sed 's#.*/##' | sed 's/.cls//g' > all_test_classes.txt || true
+          grep -l "@isTest" force-app/main/default/classes/*.cls | sed 's#.*/##;s/.cls//' > all_test_classes.txt || true
 
       # ------------------------------------------
-      # Intelligent Test Mapping
+      # Map Tests
       # ------------------------------------------
       - name: Map Tests
         id: testmapping
@@ -79,29 +78,12 @@ jobs:
             FILE="force-app/main/default/classes/${testclass}.cls"
             [ -f "$FILE" ] || continue
 
-            while read changedclass; do
-              grep -qw "$changedclass" "$FILE" && echo "$testclass" >> selected_tests.txt
-            done < changed_classes.txt
-
-            while read trigger; do
-              grep -qw "$trigger" "$FILE" && echo "$testclass" >> selected_tests.txt
-            done < changed_triggers.txt
-
-            while read lwc; do
-              grep -qw "$lwc" "$FILE" && echo "$testclass" >> selected_tests.txt
-            done < changed_lwc.txt
-
-            while read aura; do
-              grep -qw "$aura" "$FILE" && echo "$testclass" >> selected_tests.txt
-            done < changed_aura.txt
-
-            while read vf; do
-              grep -qw "$vf" "$FILE" && echo "$testclass" >> selected_tests.txt
-            done < changed_vf_pages.txt
-
-            while read vfc; do
-              grep -qw "$vfc" "$FILE" && echo "$testclass" >> selected_tests.txt
-            done < changed_vf_components.txt
+            while read c; do grep -qw "$c" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_classes.txt
+            while read t; do grep -qw "$t" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_triggers.txt
+            while read l; do grep -qw "$l" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_lwc.txt
+            while read a; do grep -qw "$a" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_aura.txt
+            while read v; do grep -qw "$v" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_vf_pages.txt
+            while read vc; do grep -qw "$vc" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_vf_components.txt
 
           done < all_test_classes.txt
 
@@ -129,16 +111,13 @@ jobs:
           fi
 
       # ------------------------------------------
-      # Build Delta Source
+      # Build Delta
       # ------------------------------------------
       - name: Build Delta Source
         run: |
           mkdir -p delta_src
-
           while read file; do
-            [ -f "$file" ] || continue
-            mkdir -p "delta_src/$(dirname $file)"
-            cp "$file" "delta_src/$file"
+            [ -f "$file" ] && mkdir -p delta_src/$(dirname $file) && cp "$file" delta_src/$file
           done < changed_files.txt
 
       # ------------------------------------------
@@ -146,12 +125,10 @@ jobs:
       # ------------------------------------------
       - name: Convert to MDAPI
         run: |
-          sf project convert source \
-            --source-dir delta_src \
-            --output-dir delta_mdapi
+          sf project convert source --source-dir delta_src --output-dir delta_mdapi
 
       # ------------------------------------------
-      # Check Empty Delta
+      # Check Delta
       # ------------------------------------------
       - name: Check Delta Empty
         id: checkdelta
@@ -169,7 +146,6 @@ jobs:
         if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
         run: |
           BRANCH=delta-release-${{ github.run_number }}
-
           git checkout -b $BRANCH
           cp -r delta_src/* . || true
 
@@ -191,17 +167,13 @@ jobs:
         if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
         run: |
           git fetch origin
-
           if ! git rev-parse origin/release >/dev/null 2>&1; then
-            echo "Release branch not found. Creating from develop..."
-            git checkout -b release
+            git checkout -b release origin/develop
             git push origin release
-          else
-            echo "Release branch exists"
           fi
 
       # ------------------------------------------
-      # Create PR → Release
+      # PR to Release
       # ------------------------------------------
       - name: Create PR to Release
         if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
@@ -215,7 +187,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       # ------------------------------------------
-      # Authenticate to UAT
+      # Authenticate UAT
       # ------------------------------------------
       - name: Authenticate UAT
         run: |
@@ -223,45 +195,34 @@ jobs:
           sf org login jwt \
             --username ${{ secrets.DEPLOYMENT_USERNAME }} \
             --jwt-key-file server.key \
-            --client-id ${{ secrets.CONSUMER_KEYS }} \
+            --client-id ${{ secrets.CONSUMER_KEYS}} \
             --instance-url ${{ vars.INSTANCE_URL }} \
             --alias uat-org
 
       # ------------------------------------------
-      # Validate Deployment to UAT
+      # Validate Deployment
       # ------------------------------------------
       - name: Validate Deployment to UAT
         if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
         run: |
-          if [[ "${{ steps.vrulecheck.outputs.run_all }}" == "true" ]]; then
-
-            sf project deploy validate \
-              --metadata-dir delta_mdapi \
-              --target-org uat-org \
-              --test-level RunLocalTests \
-              --wait 30
-
-          elif [[ "${{ steps.testmapping.outputs.test-level }}" == "RunSpecifiedTests" && -n "${{ steps.testmapping.outputs.tests }}" ]]; then
-
-            sf project deploy validate \
-              --metadata-dir delta_mdapi \
-              --target-org uat-org \
-              --test-level RunSpecifiedTests \
-              --tests "${{ steps.testmapping.outputs.tests }}" \
-              --wait 30
-
-          else
-
-            sf project deploy validate \
-              --metadata-dir delta_mdapi \
-              --target-org uat-org \
-              --test-level RunLocalTests \
-              --wait 30
-
-          fi
+          sf project deploy validate \
+            --metadata-dir delta_mdapi \
+            --target-org uat-org \
+            --test-level RunLocalTests \
+            --wait 30
 
       # ------------------------------------------
-      # Create PR → Master
+      # Push Release
+      # ------------------------------------------
+      - name: Push changes to Release
+        if: success()
+        run: |
+          git checkout release
+          git pull origin release || true
+          git push origin release
+
+      # ------------------------------------------
+      # PR to Master
       # ------------------------------------------
       - name: Create PR to Master
         if: success()
