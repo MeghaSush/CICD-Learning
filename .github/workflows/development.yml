@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       # ------------------------------------------
-      # Install Tools
+      # Install Necessary Tools
       # ------------------------------------------
       - name: Install Tools
         run: |
