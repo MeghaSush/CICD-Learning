@@ -216,21 +216,8 @@ jobs:
       # ------------------------------------------
       - name: Push changes to Release
         if: success()
-        run: |
+        run: 
           git checkout release
           git pull origin release || true
           git push origin release
 
-      # ------------------------------------------
-      # PR to Master
-      # ------------------------------------------
-      - name: Create PR to Master
-        if: success()
-        run: |
-          gh pr create \
-            --base master \
-            --head release \
-            --title "Release → Master Promotion" \
-            --body "Validated changes ready for production"
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
