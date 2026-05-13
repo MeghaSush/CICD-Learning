@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Preferred_Contact_Method__c</fullName>
+    <label>Preferred Contact Method</label>
+    <description>Indicates the customer's preferred method of communication for business correspondence</description>
+    <inlineHelpText>Specify how the customer prefers to be contacted (e.g., Email, Phone, SMS, Mail). This helps ensure effective communication.</inlineHelpText>
+    <type>Text</type>
+    <length>50</length>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>false</externalId>
+</CustomField>
