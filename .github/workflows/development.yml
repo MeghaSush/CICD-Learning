@@ -1,4 +1,4 @@
-name: Salesforce CI/CD Pipeline (Enhanced Intelligent Coverage + Promotion)
+name: Salesforce CI/CD Pipeline (Full Metadata Coverage)
 
 on:
   push:
@@ -47,24 +47,156 @@ jobs:
           cat changed_files.txt
 
       # ------------------------------------------
-      # Extract Changed Metadata
+      # Extract Changed Metadata (All Types)
       # ------------------------------------------
       - name: Extract Changed Metadata
         run: |
-          grep -i "force-app/.*/classes/.*\.cls" changed_files.txt | sed 's#.*/##;s/.cls//' > changed_classes.txt || true
-          grep -i "force-app/.*/triggers/.*\.trigger" changed_files.txt | sed 's#.*/##;s/.trigger//' > changed_triggers.txt || true
-          grep -i "force-app/.*/lwc/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt || true
-          grep -i "force-app/.*/aura/" changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt || true
-          grep -i "force-app/.*/pages/.*\.page" changed_files.txt | sed 's#.*/##;s/.page//' > changed_vf_pages.txt || true
-          grep -i "force-app/.*/components/.*\.component" changed_files.txt | sed 's#.*/##;s/.component//' > changed_vf_components.txt || true
-          grep -i "validationRules" changed_files.txt > changed_validation_rules.txt || true
+          BASE="force-app/main/default"
+
+          # ── Code ──────────────────────────────────────────────────────────
+          grep -iE "$BASE/classes/.*\.cls$"                  changed_files.txt | sed 's#.*/##;s/\.cls$//'         > changed_classes.txt          || true
+          grep -iE "$BASE/triggers/.*\.trigger$"             changed_files.txt | sed 's#.*/##;s/\.trigger$//'      > changed_triggers.txt         || true
+
+          # ── UI Components ─────────────────────────────────────────────────
+          grep -iE "$BASE/lwc/"                              changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt          || true
+          grep -iE "$BASE/aura/"                             changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt         || true
+          grep -iE "$BASE/pages/.*\.page$"                   changed_files.txt | sed 's#.*/##;s/\.page$//'         > changed_vf_pages.txt         || true
+          grep -iE "$BASE/components/.*\.component$"         changed_files.txt | sed 's#.*/##;s/\.component$//'    > changed_vf_components.txt    || true
+          grep -iE "$BASE/flexipages/.*\.flexipage$"         changed_files.txt | sed 's#.*/##;s/\.flexipage$//'    > changed_flexipages.txt        || true
+          grep -iE "$BASE/staticresources/"                  changed_files.txt | awk -F'/' '{print $NF}'           > changed_static_resources.txt || true
+          grep -iE "$BASE/contentassets/"                    changed_files.txt | awk -F'/' '{print $NF}'           > changed_content_assets.txt   || true
+          grep -iE "$BASE/digitalExperiences/"               changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_exp_cloud.txt   || true
+
+          # ── Object Model ──────────────────────────────────────────────────
+          grep -iE "$BASE/objects/.*\.object-meta\.xml$"     changed_files.txt | sed 's#.*/##;s/\.object-meta\.xml$//'  > changed_objects.txt    || true
+          grep -iE "$BASE/objects/.*/fields/"                changed_files.txt | sed 's#.*/##;s/\.field-meta\.xml$//'   > changed_fields.txt      || true
+          grep -iE "$BASE/objects/.*/validationRules/"       changed_files.txt | sed 's#.*/##;s/\.validationRule-meta\.xml$//' > changed_validation_rules.txt || true
+          grep -iE "$BASE/objects/.*/recordTypes/"           changed_files.txt | sed 's#.*/##;s/\.recordType-meta\.xml$//'    > changed_record_types.txt    || true
+          grep -iE "$BASE/objects/.*/compactLayouts/"        changed_files.txt | sed 's#.*/##'                       > changed_compact_layouts.txt  || true
+          grep -iE "$BASE/objects/.*/listViews/"             changed_files.txt | sed 's#.*/##'                       > changed_list_views.txt        || true
+          grep -iE "$BASE/objects/.*/fieldSets/"             changed_files.txt | sed 's#.*/##'                       > changed_field_sets.txt        || true
+          grep -iE "$BASE/objects/.*/webLinks/"              changed_files.txt | sed 's#.*/##'                       > changed_web_links.txt         || true
+          grep -iE "$BASE/objects/.*/businessProcesses/"     changed_files.txt | sed 's#.*/##'                       > changed_business_processes.txt || true
+          grep -iE "$BASE/globalValueSets/"                  changed_files.txt | sed 's#.*/##;s/\.globalValueSet-meta\.xml$//' > changed_global_value_sets.txt || true
+          grep -iE "$BASE/standardValueSets/"                changed_files.txt | sed 's#.*/##;s/\.standardValueSet-meta\.xml$//' > changed_std_value_sets.txt || true
+          grep -iE "$BASE/customMetadata/"                   changed_files.txt | sed 's#.*/##;s/\.md$//'             > changed_custom_metadata.txt  || true
+
+          # ── Automation ────────────────────────────────────────────────────
+          grep -iE "$BASE/flows/.*\.flow-meta\.xml$"         changed_files.txt | sed 's#.*/##;s/\.flow-meta\.xml$//' > changed_flows.txt           || true
+          grep -iE "$BASE/workflows/.*\.workflow-meta\.xml$" changed_files.txt | sed 's#.*/##;s/\.workflow-meta\.xml$//' > changed_workflows.txt   || true
+          grep -iE "$BASE/approvalProcesses/"                changed_files.txt | sed 's#.*/##'                       > changed_approval_processes.txt || true
+          grep -iE "$BASE/assignmentRules/"                  changed_files.txt | sed 's#.*/##'                       > changed_assignment_rules.txt || true
+          grep -iE "$BASE/autoResponseRules/"                changed_files.txt | sed 's#.*/##'                       > changed_auto_response_rules.txt || true
+          grep -iE "$BASE/escalationRules/"                  changed_files.txt | sed 's#.*/##'                       > changed_escalation_rules.txt || true
+          grep -iE "$BASE/matchingRules/"                    changed_files.txt | sed 's#.*/##'                       > changed_matching_rules.txt   || true
+          grep -iE "$BASE/duplicateRules/"                   changed_files.txt | sed 's#.*/##'                       > changed_duplicate_rules.txt  || true
+
+          # ── Security & Access ─────────────────────────────────────────────
+          grep -iE "$BASE/profiles/.*\.profile-meta\.xml$"                    changed_files.txt | sed 's#.*/##;s/\.profile-meta\.xml$//'       > changed_profiles.txt              || true
+          grep -iE "$BASE/permissionsets/.*\.permissionset-meta\.xml$"        changed_files.txt | sed 's#.*/##;s/\.permissionset-meta\.xml$//' > changed_permission_sets.txt       || true
+          grep -iE "$BASE/permissionsetgroups/"                               changed_files.txt | sed 's#.*/##'                                > changed_perm_set_groups.txt       || true
+          grep -iE "$BASE/roles/.*\.role-meta\.xml$"                          changed_files.txt | sed 's#.*/##;s/\.role-meta\.xml$//'          > changed_roles.txt                 || true
+          grep -iE "$BASE/sharingRules/"                                      changed_files.txt | sed 's#.*/##'                                > changed_sharing_rules.txt         || true
+          grep -iE "$BASE/customPermissions/"                                 changed_files.txt | sed 's#.*/##;s/\.customPermission-meta\.xml$//' > changed_custom_permissions.txt  || true
+          grep -iE "$BASE/mutingpermissionsets/"                              changed_files.txt | sed 's#.*/##'                                > changed_muting_perm_sets.txt      || true
+
+          # ── App Config ────────────────────────────────────────────────────
+          grep -iE "$BASE/applications/.*\.app-meta\.xml$"           changed_files.txt | sed 's#.*/##;s/\.app-meta\.xml$//'           > changed_apps.txt                  || true
+          grep -iE "$BASE/tabs/.*\.tab-meta\.xml$"                   changed_files.txt | sed 's#.*/##;s/\.tab-meta\.xml$//'           > changed_tabs.txt                  || true
+          grep -iE "$BASE/layouts/.*\.layout-meta\.xml$"             changed_files.txt | sed 's#.*/##;s/\.layout-meta\.xml$//'        > changed_layouts.txt               || true
+          grep -iE "$BASE/quickActions/.*\.quickAction-meta\.xml$"   changed_files.txt | sed 's#.*/##;s/\.quickAction-meta\.xml$//'  > changed_quick_actions.txt         || true
+          grep -iE "$BASE/globalActions/"                            changed_files.txt | sed 's#.*/##'                               > changed_global_actions.txt        || true
+          grep -iE "$BASE/pathAssistants/"                           changed_files.txt | sed 's#.*/##'                               > changed_path_assistants.txt       || true
+          grep -iE "$BASE/compactLayouts/"                           changed_files.txt | sed 's#.*/##'                               > changed_global_compact_layouts.txt || true
+
+          # ── Integration ───────────────────────────────────────────────────
+          grep -iE "$BASE/namedCredentials/"                         changed_files.txt | sed 's#.*/##'                               > changed_named_credentials.txt     || true
+          grep -iE "$BASE/remoteSiteSettings/"                       changed_files.txt | sed 's#.*/##'                               > changed_remote_sites.txt          || true
+          grep -iE "$BASE/connectedApps/"                            changed_files.txt | sed 's#.*/##'                               > changed_connected_apps.txt        || true
+          grep -iE "$BASE/cspTrustedSites/"                          changed_files.txt | sed 's#.*/##'                               > changed_csp_trusted_sites.txt     || true
+          grep -iE "$BASE/platformEventChannels/"                    changed_files.txt | sed 's#.*/##'                               > changed_platform_events.txt       || true
+          grep -iE "$BASE/externalDataSources/"                      changed_files.txt | sed 's#.*/##'                               > changed_external_datasources.txt  || true
+          grep -iE "$BASE/externalServices/"                         changed_files.txt | sed 's#.*/##'                               > changed_external_services.txt     || true
+
+          # ── Content & Communication ───────────────────────────────────────
+          grep -iE "$BASE/email/"                                    changed_files.txt | sed 's#.*/##'                               > changed_email_templates.txt       || true
+          grep -iE "$BASE/reports/"                                  changed_files.txt | awk -F'/' '{print $(NF-1)"/"$NF}' | sort -u > changed_reports.txt              || true
+          grep -iE "$BASE/dashboards/"                               changed_files.txt | awk -F'/' '{print $(NF-1)"/"$NF}' | sort -u > changed_dashboards.txt           || true
+          grep -iE "$BASE/documents/"                                changed_files.txt | sed 's#.*/##'                               > changed_documents.txt             || true
+          grep -iE "$BASE/labels/.*\.labels-meta\.xml$"              changed_files.txt | sed 's#.*/##'                               > changed_labels.txt                || true
+          grep -iE "$BASE/notificationtypes/"                        changed_files.txt | sed 's#.*/##'                               > changed_notification_types.txt    || true
+          grep -iE "$BASE/notifTypes/"                               changed_files.txt | sed 's#.*/##'                               > changed_notif_types.txt           || true
+
+          # ── Territory & Queue ─────────────────────────────────────────────
+          grep -iE "$BASE/territories/"                              changed_files.txt | sed 's#.*/##'                               > changed_territories.txt           || true
+          grep -iE "$BASE/queues/"                                   changed_files.txt | sed 's#.*/##'                               > changed_queues.txt                || true
+          grep -iE "$BASE/groups/"                                   changed_files.txt | sed 's#.*/##'                               > changed_groups.txt                || true
+
+          # ── Settings & Org-wide ───────────────────────────────────────────
+          grep -iE "$BASE/settings/.*\.settings-meta\.xml$"          changed_files.txt | sed 's#.*/##'                               > changed_settings.txt              || true
+          grep -iE "$BASE/translations/"                             changed_files.txt | sed 's#.*/##'                               > changed_translations.txt          || true
+          grep -iE "$BASE/objectTranslations/"                       changed_files.txt | sed 's#.*/##'                               > changed_object_translations.txt   || true
+
+          # ── OmniStudio ────────────────────────────────────────────────────
+          grep -iE "$BASE/omniIntegrationProcedures/"                changed_files.txt | sed 's#.*/##'                               > changed_omni_integrations.txt     || true
+          grep -iE "$BASE/omniUiCard/"                               changed_files.txt | sed 's#.*/##'                               > changed_omni_ui_cards.txt         || true
+          grep -iE "$BASE/omniDataTransform/"                        changed_files.txt | sed 's#.*/##'                               > changed_omni_data_transforms.txt  || true
+
+          echo "=== Metadata delta summary ==="
+          for f in changed_*.txt; do
+            COUNT=$(wc -l < "$f" | tr -d ' ')
+            [ "$COUNT" -gt 0 ] && echo "  $f: $COUNT item(s)"
+          done
 
       # ------------------------------------------
       # Identify Test Classes
       # ------------------------------------------
       - name: Identify Test Classes
         run: |
-          grep -l "@isTest" force-app/main/default/classes/*.cls | sed 's#.*/##;s/.cls//' > all_test_classes.txt || true
+          grep -rl "@isTest" force-app/main/default/classes/ | sed 's#.*/##;s/\.cls$//' > all_test_classes.txt || true
+
+      # ------------------------------------------
+      # Determine Test Run Strategy
+      # ------------------------------------------
+      - name: Determine Test Run Strategy
+        id: teststrategy
+        run: |
+          # ── High-risk metadata: always RunLocalTests ───────────────────────
+          # Changes to these types can break tests in unpredictable ways
+          HIGH_RISK_FILES=(
+            changed_profiles.txt
+            changed_permission_sets.txt
+            changed_perm_set_groups.txt
+            changed_roles.txt
+            changed_sharing_rules.txt
+            changed_validation_rules.txt
+            changed_settings.txt
+            changed_flows.txt
+            changed_workflows.txt
+            changed_approval_processes.txt
+            changed_custom_permissions.txt
+            changed_muting_perm_sets.txt
+            changed_matching_rules.txt
+            changed_duplicate_rules.txt
+            changed_assignment_rules.txt
+            changed_escalation_rules.txt
+            changed_auto_response_rules.txt
+            changed_objects.txt
+            changed_fields.txt
+            changed_global_value_sets.txt
+            changed_std_value_sets.txt
+          )
+
+          RUN_ALL=false
+          for f in "${HIGH_RISK_FILES[@]}"; do
+            if [ -s "$f" ]; then
+              echo "High-risk metadata changed ($f) → escalating to RunLocalTests"
+              RUN_ALL=true
+              break
+            fi
+          done
+
+          echo "run_all=$RUN_ALL" >> $GITHUB_OUTPUT
 
       # ------------------------------------------
       # Map Tests
@@ -74,50 +206,69 @@ jobs:
         run: |
           > selected_tests.txt
 
+          # All changed-metadata files whose names can appear in test class bodies
+          MAPPING_FILES=(
+            changed_classes.txt
+            changed_triggers.txt
+            changed_lwc.txt
+            changed_aura.txt
+            changed_vf_pages.txt
+            changed_vf_components.txt
+            changed_flexipages.txt
+            changed_flows.txt
+            changed_custom_metadata.txt
+            changed_labels.txt
+            changed_quick_actions.txt
+            changed_named_credentials.txt
+            changed_platform_events.txt
+            changed_notification_types.txt
+            changed_notif_types.txt
+            changed_omni_integrations.txt
+            changed_omni_ui_cards.txt
+            changed_omni_data_transforms.txt
+          )
+
           while read testclass; do
             FILE="force-app/main/default/classes/${testclass}.cls"
             [ -f "$FILE" ] || continue
 
-            while read c; do grep -qw "$c" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_classes.txt
-            while read t; do grep -qw "$t" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_triggers.txt
-            while read l; do grep -qw "$l" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_lwc.txt
-            while read a; do grep -qw "$a" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_aura.txt
-            while read v; do grep -qw "$v" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_vf_pages.txt
-            while read vc; do grep -qw "$vc" "$FILE" && echo "$testclass" >> selected_tests.txt; done < changed_vf_components.txt
+            for mfile in "${MAPPING_FILES[@]}"; do
+              [ -s "$mfile" ] || continue
+              while read token; do
+                [ -z "$token" ] && continue
+                grep -qw "$token" "$FILE" && echo "$testclass" >> selected_tests.txt
+              done < "$mfile"
+            done
 
           done < all_test_classes.txt
 
           sort -u selected_tests.txt > final_tests.txt
-
           TESTS=$(paste -sd ',' final_tests.txt)
 
-          if [ -n "$TESTS" ]; then
-            echo "tests=$TESTS" >> $GITHUB_OUTPUT
+          if [ "${{ steps.teststrategy.outputs.run_all }}" == "true" ]; then
+            echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+            echo "tests=" >> $GITHUB_OUTPUT
+            echo "Reason: High-risk metadata changed"
+          elif [ -n "$TESTS" ]; then
             echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
+            echo "tests=$TESTS" >> $GITHUB_OUTPUT
+            echo "Reason: Mapped tests found → $TESTS"
           else
             echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+            echo "tests=" >> $GITHUB_OUTPUT
+            echo "Reason: No mapped tests found, falling back to RunLocalTests"
           fi
 
       # ------------------------------------------
-      # Validation Rule Override
-      # ------------------------------------------
-      - name: Check Validation Rule Changes
-        id: vrulecheck
-        run: |
-          if [ -s changed_validation_rules.txt ]; then
-            echo "run_all=true" >> $GITHUB_OUTPUT
-          else
-            echo "run_all=false" >> $GITHUB_OUTPUT
-          fi
-
-      # ------------------------------------------
-      # Build Delta
+      # Build Delta Source
       # ------------------------------------------
       - name: Build Delta Source
         run: |
           mkdir -p delta_src
           while read file; do
-            [ -f "$file" ] && mkdir -p delta_src/$(dirname $file) && cp "$file" delta_src/$file
+            [ -f "$file" ] || continue
+            mkdir -p "delta_src/$(dirname $file)"
+            cp "$file" "delta_src/$file"
           done < changed_files.txt
 
       # ------------------------------------------
@@ -125,10 +276,12 @@ jobs:
       # ------------------------------------------
       - name: Convert to MDAPI
         run: |
-          sf project convert source --source-dir delta_src --output-dir delta_mdapi
+          sf project convert source \
+            --source-dir delta_src \
+            --output-dir delta_mdapi
 
       # ------------------------------------------
-      # Check Delta
+      # Check Delta Empty
       # ------------------------------------------
       - name: Check Delta Empty
         id: checkdelta
@@ -195,29 +348,54 @@ jobs:
           sf org login jwt \
             --username ${{ secrets.DEPLOYMENT_USERNAME }} \
             --jwt-key-file server.key \
-            --client-id ${{ secrets.CONSUMER_KEYS}} \
+            --client-id ${{ secrets.CONSUMER_KEYS }} \
             --instance-url ${{ vars.INSTANCE_URL }} \
             --alias uat-org
 
       # ------------------------------------------
-      # Validate Deployment
+      # Validate Deployment to UAT
       # ------------------------------------------
       - name: Validate Deployment to UAT
         if: ${{ steps.checkdelta.outputs.no_changes == 'false' }}
         run: |
-          sf project deploy validate \
-            --metadata-dir delta_mdapi \
-            --target-org uat-org \
-            --test-level RunLocalTests \
-            --wait 30
+          TEST_LEVEL="${{ steps.testmapping.outputs.test-level }}"
+          TESTS="${{ steps.testmapping.outputs.tests }}"
+
+          if [ "$TEST_LEVEL" == "RunSpecifiedTests" ] && [ -n "$TESTS" ]; then
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
+              --test-level RunSpecifiedTests \
+              --tests "$TESTS" \
+              --wait 30
+          else
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
+              --test-level RunLocalTests \
+              --wait 30
+          fi
 
       # ------------------------------------------
       # Push Release
       # ------------------------------------------
       - name: Push changes to Release
         if: success()
-        run: 
+        run: |
           git checkout release
           git pull origin release || true
           git push origin release
 
+      # ------------------------------------------
+      # PR to Master
+      # ------------------------------------------
+      - name: Create PR to Master
+        if: success()
+        run: |
+          gh pr create \
+            --base master \
+            --head release \
+            --title "Release → Master Promotion" \
+            --body "Validated changes ready for production"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
