@@ -1,6 +1,6 @@
 public with sharing class AccountDuplicateController {
     
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static List<Account> findDuplicateAccounts(String accountName, String postalCode) {
         try {
             if (String.isBlank(accountName) && String.isBlank(postalCode)) {
