@@ -1,0 +1,2 @@
+force-app/main/default/aura/accountDuplicateCheckerAura/accountDuplicateCheckerAura.cmp
+force-app/main/default/aura/accountDuplicateCheckerAura/accountDuplicateCheckerAuraController.js
