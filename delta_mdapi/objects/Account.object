@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fields>
+        <fullName>Test_Account__c</fullName>
+        <label>Test Account</label>
+        <description>To identify Accounts created for Testing Purpose</description>
+        <inlineHelpText>Check this box to mark this account as a test account created for testing purposes. This field cannot be modified after the account is created.</inlineHelpText>
+        <type>Checkbox</type>
+        <defaultValue>false</defaultValue>
+    </fields>
+    <validationRules>
+        <fullName>Prevent_Test_Account_Update</fullName>
+        <active>true</active>
+        <errorConditionFormula>AND(
+    NOT(ISNEW()),
+    ISCHANGED(Test_Account__c)
+)</errorConditionFormula>
+        <errorDisplayField>Test_Account__c</errorDisplayField>
+        <errorMessage>The Test Account field cannot be modified after the account is created.</errorMessage>
+    </validationRules>
+</CustomObject>
