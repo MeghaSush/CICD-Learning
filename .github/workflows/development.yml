@@ -214,55 +214,33 @@ jobs:
           grep -rl "@isTest" force-app/main/default/classes/ | sed 's#.*/##;s/\.cls$//' > all_test_classes.txt || true
 
       # ------------------------------------------
-      # Determine Test Run Strategy
+      # Determine Test Strategy & Map Tests
       # ------------------------------------------
-      - name: Determine Test Run Strategy
-        id: teststrategy
-        run: |
-          HIGH_RISK_FILES=(
-            changed_profiles.txt
-            changed_permission_sets.txt
-            changed_perm_set_groups.txt
-            changed_roles.txt
-            changed_sharing_rules.txt
-            changed_validation_rules.txt
-            changed_settings.txt
-            changed_flows.txt
-            changed_workflows.txt
-            changed_approval_processes.txt
-            changed_custom_permissions.txt
-            changed_muting_perm_sets.txt
-            changed_matching_rules.txt
-            changed_duplicate_rules.txt
-            changed_assignment_rules.txt
-            changed_escalation_rules.txt
-            changed_auto_response_rules.txt
-            changed_objects.txt
-            changed_fields.txt
-            changed_global_value_sets.txt
-            changed_std_value_sets.txt
-          )
-
-          RUN_ALL=false
-          for f in "${HIGH_RISK_FILES[@]}"; do
-            if [ -s "$f" ]; then
-              echo "High-risk metadata changed ($f) → escalating to RunLocalTests"
-              RUN_ALL=true
-              break
-            fi
-          done
-
-          echo "run_all=$RUN_ALL" >> $GITHUB_OUTPUT
-
+      # Decision tree:
+      #  1. Validation rules changed?
+      #       → RunLocalTests (no further checks)
+      #  2. No validation rules, but code/UI components changed?
+      #       → Map tests against test classes
+      #         a. Mapped tests found  → RunSpecifiedTests
+      #         b. No mapped tests     → RunLocalTests
+      #  3. No validation rules, no code, no UI components?
+      #       → NoTestRun (pure metadata-only deployment)
       # ------------------------------------------
-      # Map Tests
-      # ------------------------------------------
-      - name: Map Tests
+      - name: Determine Test Strategy and Map Tests
         id: testmapping
         run: |
           > selected_tests.txt
 
-          MAPPING_FILES=(
+          # ── Tier 1: Validation rules → always RunLocalTests ───────────────
+          if [ -s changed_validation_rules.txt ]; then
+            echo "Validation rules changed → RunLocalTests"
+            echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+            echo "tests="                  >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # ── Tier 2: Check for code and UI component changes ───────────────
+          CODE_UI_FILES=(
             changed_classes.txt
             changed_triggers.txt
             changed_lwc.txt
@@ -270,47 +248,72 @@ jobs:
             changed_vf_pages.txt
             changed_vf_components.txt
             changed_flexipages.txt
-            changed_flows.txt
-            changed_custom_metadata.txt
-            changed_labels.txt
-            changed_quick_actions.txt
-            changed_named_credentials.txt
-            changed_platform_events.txt
-            changed_notification_types.txt
-            changed_notif_types.txt
-            changed_omni_integrations.txt
-            changed_omni_ui_cards.txt
-            changed_omni_data_transforms.txt
           )
 
-          while read testclass; do
-            FILE="force-app/main/default/classes/${testclass}.cls"
-            [ -f "$FILE" ] || continue
-            for mfile in "${MAPPING_FILES[@]}"; do
-              [ -s "$mfile" ] || continue
-              while read token; do
-                [ -z "$token" ] && continue
-                grep -qw "$token" "$FILE" && echo "$testclass" >> selected_tests.txt
-              done < "$mfile"
-            done
-          done < all_test_classes.txt
+          HAS_CODE_UI=false
+          for f in "${CODE_UI_FILES[@]}"; do
+            if [ -s "$f" ]; then
+              HAS_CODE_UI=true
+              break
+            fi
+          done
 
-          sort -u selected_tests.txt > final_tests.txt
-          TESTS=$(paste -sd ',' final_tests.txt)
+          if [ "$HAS_CODE_UI" = "true" ]; then
+            echo "Code/UI components changed → mapping test classes"
 
-          if [ "${{ steps.teststrategy.outputs.run_all }}" == "true" ]; then
-            echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
-            echo "tests=" >> $GITHUB_OUTPUT
-            echo "Reason: High-risk metadata changed"
-          elif [ -n "$TESTS" ]; then
-            echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
-            echo "tests=$TESTS" >> $GITHUB_OUTPUT
-            echo "Reason: Mapped tests found → $TESTS"
-          else
-            echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
-            echo "tests=" >> $GITHUB_OUTPUT
-            echo "Reason: No mapped tests found, falling back to RunLocalTests"
+            # Files whose tokens can appear in test class bodies
+            MAPPING_FILES=(
+              changed_classes.txt
+              changed_triggers.txt
+              changed_lwc.txt
+              changed_aura.txt
+              changed_vf_pages.txt
+              changed_vf_components.txt
+              changed_flexipages.txt
+              changed_flows.txt
+              changed_custom_metadata.txt
+              changed_labels.txt
+              changed_quick_actions.txt
+              changed_named_credentials.txt
+              changed_platform_events.txt
+              changed_notification_types.txt
+              changed_notif_types.txt
+              changed_omni_integrations.txt
+              changed_omni_ui_cards.txt
+              changed_omni_data_transforms.txt
+            )
+
+            while read testclass; do
+              FILE="force-app/main/default/classes/${testclass}.cls"
+              [ -f "$FILE" ] || continue
+              for mfile in "${MAPPING_FILES[@]}"; do
+                [ -s "$mfile" ] || continue
+                while read token; do
+                  [ -z "$token" ] && continue
+                  grep -qw "$token" "$FILE" && echo "$testclass" >> selected_tests.txt
+                done < "$mfile"
+              done
+            done < all_test_classes.txt
+
+            sort -u selected_tests.txt > final_tests.txt
+            TESTS=$(paste -sd ',' final_tests.txt)
+
+            if [ -n "$TESTS" ]; then
+              echo "Mapped tests found → RunSpecifiedTests: $TESTS"
+              echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
+              echo "tests=$TESTS"                >> $GITHUB_OUTPUT
+            else
+              echo "No mapped tests found → RunLocalTests"
+              echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
+              echo "tests="                  >> $GITHUB_OUTPUT
+            fi
+            exit 0
           fi
+
+          # ── Tier 3: No validation rules, no code/UI → NoTestRun ───────────
+          echo "No code, UI, or validation rule changes → NoTestRun (metadata-only deployment)"
+          echo "test-level=NoTestRun" >> $GITHUB_OUTPUT
+          echo "tests="              >> $GITHUB_OUTPUT
 
       # ------------------------------------------
       # Build Delta Source
@@ -410,18 +413,32 @@ jobs:
           TEST_LEVEL="${{ steps.testmapping.outputs.test-level }}"
           TESTS="${{ steps.testmapping.outputs.tests }}"
 
+          echo "Test level: $TEST_LEVEL"
+          echo "Tests     : ${TESTS:-n/a}"
+
           if [ "$TEST_LEVEL" == "RunSpecifiedTests" ] && [ -n "$TESTS" ]; then
+            # Code/UI changed and specific test classes were mapped
             sf project deploy validate \
               --metadata-dir delta_mdapi \
               --target-org uat-org \
               --test-level RunSpecifiedTests \
               --tests "$TESTS" \
               --wait 30
-          else
+
+          elif [ "$TEST_LEVEL" == "RunLocalTests" ]; then
+            # Validation rules changed, or code/UI changed but no tests mapped
             sf project deploy validate \
               --metadata-dir delta_mdapi \
               --target-org uat-org \
               --test-level RunLocalTests \
+              --wait 30
+
+          else
+            # NoTestRun — pure metadata deployment (no code, no UI, no validation rules)
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
+              --test-level NoTestRun \
               --wait 30
           fi
 
@@ -434,5 +451,3 @@ jobs:
           git checkout release
           git pull origin release || true
           git push origin release
-
-  
