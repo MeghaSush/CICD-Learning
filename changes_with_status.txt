@@ -1,0 +1,5 @@
+A	force-app/main/default/aura/AccountDuplicateChecker/AccountDuplicateChecker.cmp
+A	force-app/main/default/aura/AccountDuplicateChecker/AccountDuplicateChecker.cmp-meta.xml
+A	force-app/main/default/aura/AccountDuplicateChecker/AccountDuplicateCheckerController.js
+A	force-app/main/default/aura/AccountDuplicateChecker/AccountDuplicateCheckerHelper.js
+M	force-app/main/default/quickActions/Account.New_Account_With_Duplicate_Check.quickAction-meta.xml
