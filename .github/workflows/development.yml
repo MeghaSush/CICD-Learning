@@ -38,16 +38,24 @@ jobs:
       - name: Detect Changed Files
         id: diffcheck
         run: |
+          # Determine the base commit for comparison
           if [ -z "${{ github.event.before }}" ] || [ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]; then
-            echo "First push detected, comparing against HEAD~1"
-            git diff --name-only HEAD~1 ${{ github.sha }} > changed_files.txt || git diff --name-only ${{ github.sha }} > changed_files.txt
+            # For initial push or missing before ref, compare with parent commit
+            BASE_REF=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+            if [ -z "$BASE_REF" ]; then
+              # No parent commit exists; compare all files in current commit
+              git diff --name-only HEAD~1..HEAD > changed_files.txt 2>/dev/null || git diff-tree --no-commit-id --name-only -r HEAD > changed_files.txt
+              git diff --name-status HEAD~1..HEAD > changes_with_status.txt 2>/dev/null || git diff-tree --no-commit-id --name-status -r HEAD > changes_with_status.txt
+            else
+              git diff --name-only $BASE_REF ${{ github.sha }} > changed_files.txt
+              git diff --name-status $BASE_REF ${{ github.sha }} > changes_with_status.txt
+            fi
           else
-            echo "Before: ${{ github.event.before }}"
-            echo "After : ${{ github.sha }}"
+            # Standard case: use the before/after refs provided
             git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
+            git diff --name-status ${{ github.event.before }} ${{ github.sha }} > changes_with_status.txt
           fi
-          
-          git diff --name-status ${{ github.event.before }} ${{ github.sha }} > changes_with_status.txt || true
+
           cat changed_files.txt
 
       # ------------------------------------------
