@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prevent_Field_Edit_On_Update</fullName>
+    <active>true</active>
+    <description>Prevents editing of Employee ID and Department fields during record updates</description>
+    <errorConditionFormula><![CDATA[AND(
+    NOT(ISNEW()),
+    OR(
+        ISCHANGED(Employee_ID__c),
+        ISCHANGED(Department__c)
+    )
+)]]></errorConditionFormula>
+    <errorDisplayField>Employee_ID__c</errorDisplayField>
+    <errorMessage>Employee ID and Department cannot be modified after the record is created. Please contact your administrator if changes are required.</errorMessage>
+</ValidationRule>
