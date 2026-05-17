@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Test_Case__c</fullName>
+    <label>Test Case</label>
+    <description>To identify Cases created for Testing Purpose</description>
+    <inlineHelpText>Check this box to mark this case as a test case created for testing purposes. This helps differentiate test data from production cases.</inlineHelpText>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>
