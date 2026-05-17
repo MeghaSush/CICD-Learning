@@ -1,0 +1,3 @@
+force-app/main/default/aura/accountDuplicateCheckerAura/accountDuplicateCheckerAura.cmp
+force-app/main/default/aura/accountDuplicateCheckerAura/accountDuplicateCheckerAura.cmp-meta.xml
+force-app/main/default/quickActions/Account.New_Account_With_Duplicate_Check.quickAction-meta.xml

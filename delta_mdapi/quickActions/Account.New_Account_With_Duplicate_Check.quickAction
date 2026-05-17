@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>New Account</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <type>LightningComponent</type>
+    <lightningComponent>c:accountDuplicateCheckerAura</lightningComponent>
+    <targetObject>Account</targetObject>
+</QuickAction>
