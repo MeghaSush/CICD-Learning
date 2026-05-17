@@ -1,0 +1,103 @@
+<aura:component controller="AccountDuplicateController"
+                implements="force:appHostable,lightning:actionOverride,flexipage:availableForAllPageTypes,force:lightningQuickAction" 
+                access="global">
+    
+    <aura:attribute name="accountName" type="String"/>
+    <aura:attribute name="billingStreet" type="String"/>
+    <aura:attribute name="billingCity" type="String"/>
+    <aura:attribute name="billingState" type="String"/>
+    <aura:attribute name="billingPostalCode" type="String"/>
+    <aura:attribute name="billingCountry" type="String"/>
+    <aura:attribute name="phone" type="String"/>
+    <aura:attribute name="website" type="String"/>
+    <aura:attribute name="duplicates" type="List"/>
+    <aura:attribute name="showDuplicates" type="Boolean" default="false"/>
+    <aura:attribute name="hasDuplicates" type="Boolean" default="false"/>
+    
+    <lightning:card title="Create New Account" iconName="standard:account">
+        <div class="slds-p-around_medium">
+            <!-- Account Form -->
+            <lightning:layout multipleRows="true">
+                <lightning:layoutItem size="12" padding="around-small">
+                    <lightning:input label="Account Name" value="{!v.accountName}" required="true"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input label="Billing Street" value="{!v.billingStreet}"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input label="Billing City" value="{!v.billingCity}"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input label="Billing State" value="{!v.billingState}"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input label="Billing Postal Code" value="{!v.billingPostalCode}"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input label="Billing Country" value="{!v.billingCountry}"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="6" padding="around-small">
+                    <lightning:input label="Phone" value="{!v.phone}" type="tel"/>
+                </lightning:layoutItem>
+                
+                <lightning:layoutItem size="12" padding="around-small">
+                    <lightning:input label="Website" value="{!v.website}" type="url"/>
+                </lightning:layoutItem>
+            </lightning:layout>
+            
+            <!-- Check Duplicates Button -->
+            <div class="slds-m-top_medium">
+                <lightning:button label="Check for Duplicates" onclick="{!c.checkDuplicates}" variant="neutral"/>
+            </div>
+            
+            <!-- Duplicate Results -->
+            <aura:if isTrue="{!v.showDuplicates}">
+                <div class="slds-m-top_medium">
+                    <aura:if isTrue="{!v.hasDuplicates}">
+                        <div class="slds-box slds-theme_warning slds-m-bottom_medium">
+                            <p class="slds-text-heading_small">
+                                <lightning:icon iconName="utility:warning" size="small"/>
+                                Potential duplicate accounts found!
+                            </p>
+                        </div>
+                        
+                        <div class="slds-box">
+                            <h3 class="slds-text-heading_small slds-m-bottom_small">Duplicate Accounts:</h3>
+                            <aura:iteration items="{!v.duplicates}" var="dup">
+                                <div class="slds-box slds-m-bottom_small">
+                                    <p><strong>{!dup.Name}</strong></p>
+                                    <p>Street: {!dup.BillingStreet}</p>
+                                    <p>City: {!dup.BillingCity}, State: {!dup.BillingState}</p>
+                                    <p>Postal Code: {!dup.BillingPostalCode}</p>
+                                    <p>Phone: {!dup.Phone}</p>
+                                    <lightning:button label="View" onclick="{!c.viewAccount}" data-id="{!dup.Id}" variant="base"/>
+                                </div>
+                            </aura:iteration>
+                        </div>
+                    </aura:if>
+                    
+                    <aura:if isTrue="{!not(v.hasDuplicates)}">
+                        <div class="slds-box slds-theme_success">
+                            <p class="slds-text-heading_small">
+                                <lightning:icon iconName="utility:success" size="small"/>
+                                No duplicates found. You can proceed with creating the account.
+                            </p>
+                        </div>
+                    </aura:if>
+                </div>
+            </aura:if>
+            
+            <!-- Action Buttons -->
+            <div class="slds-m-top_medium">
+                <lightning:button label="Save" onclick="{!c.saveAccount}" variant="brand" class="slds-m-right_small"/>
+                <lightning:button label="Cancel" onclick="{!c.cancel}" variant="neutral"/>
+            </div>
+        </div>
+    </lightning:card>
+</aura:component>

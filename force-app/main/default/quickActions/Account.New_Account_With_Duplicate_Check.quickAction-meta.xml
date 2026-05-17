@@ -3,6 +3,6 @@
     <label>New Account</label>
     <optionsCreateFeedItem>false</optionsCreateFeedItem>
     <type>LightningComponent</type>
-    <lightningComponent>c:accountDuplicateCheckerAura</lightningComponent>
+    <lightningComponent>c:AccountDuplicateChecker</lightningComponent>
     <targetObject>Account</targetObject>
 </QuickAction>
