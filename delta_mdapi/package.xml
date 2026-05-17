@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>AccountDuplicateController</members>
+        <name>ApexClass</name>
+    </types>
+    <types>
+        <members>accountDuplicateChecker</members>
+        <name>LightningComponentBundle</name>
+    </types>
+    <types>
+        <members>Account.New_Account_With_Duplicate_Check</members>
+        <name>QuickAction</name>
+    </types>
+    <version>63.0</version>
+</Package>

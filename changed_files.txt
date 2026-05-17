@@ -1,0 +1,7 @@
+force-app/main/default/classes/AccountDuplicateController.cls
+force-app/main/default/classes/AccountDuplicateController.cls-meta.xml
+force-app/main/default/lwc/accountDuplicateChecker/accountDuplicateChecker.css
+force-app/main/default/lwc/accountDuplicateChecker/accountDuplicateChecker.html
+force-app/main/default/lwc/accountDuplicateChecker/accountDuplicateChecker.js
+force-app/main/default/lwc/accountDuplicateChecker/accountDuplicateChecker.js-meta.xml
+force-app/main/default/quickActions/Account.New_Account_With_Duplicate_Check.quickAction-meta.xml
