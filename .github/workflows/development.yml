@@ -40,8 +40,19 @@ jobs:
         run: |
           echo "Before: ${{ github.event.before }}"
           echo "After : ${{ github.sha }}"
-          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
-          git diff --name-status ${{ github.event.before }} ${{ github.sha }} > changes_with_status.txt
+
+          # Handle initial push where 'before' is all zeros
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "Initial push detected, comparing against HEAD~1"
+            git diff --name-only HEAD~1 ${{ github.sha }} > changed_files.txt \
+              || git diff --name-only ${{ github.sha }} > changed_files.txt
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed_files.txt
+          fi
+
+          git diff --name-status ${{ github.event.before }} ${{ github.sha }} > changes_with_status.txt \
+            || git diff --name-status HEAD ${{ github.sha }} > changes_with_status.txt
+
           cat changed_files.txt
 
       # ------------------------------------------
@@ -86,103 +97,114 @@ jobs:
                 changed_omni_integrations.txt changed_omni_ui_cards.txt \
                 changed_omni_data_transforms.txt
 
+          # Check if changed_files.txt exists and has content
+          if [ ! -f changed_files.txt ] || [ ! -s changed_files.txt ]; then
+            echo "No changes detected"
+            exit 0
+          fi
+
           # ── Code ──────────────────────────────────────────────────────────
-          grep -iE "$BASE/classes/.*\.cls$"                  changed_files.txt | sed 's#.*/##;s/\.cls$//'          > changed_classes.txt              || true
-          grep -iE "$BASE/triggers/.*\.trigger$"             changed_files.txt | sed 's#.*/##;s/\.trigger$//'       > changed_triggers.txt             || true
+          grep "$BASE/classes/.*\.cls$"                 changed_files.txt | sed 's#.*/##;s/\.cls$//'          > changed_classes.txt          || true
+          grep "$BASE/triggers/.*\.trigger$"            changed_files.txt | sed 's#.*/##;s/\.trigger$//'       > changed_triggers.txt         || true
 
           # ── UI Components ─────────────────────────────────────────────────
-          grep -iE "$BASE/lwc/"                              changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt               || true
-          grep -iE "$BASE/aura/"                             changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt              || true
-          grep -iE "$BASE/pages/.*\.page$"                   changed_files.txt | sed 's#.*/##;s/\.page$//'          > changed_vf_pages.txt             || true
-          grep -iE "$BASE/components/.*\.component$"         changed_files.txt | sed 's#.*/##;s/\.component$//'     > changed_vf_components.txt        || true
-          grep -iE "$BASE/flexipages/.*\.flexipage$"         changed_files.txt | sed 's#.*/##;s/\.flexipage$//'     > changed_flexipages.txt           || true
-          grep -iE "$BASE/staticresources/"                  changed_files.txt | awk -F'/' '{print $NF}'            > changed_static_resources.txt     || true
-          grep -iE "$BASE/contentassets/"                    changed_files.txt | awk -F'/' '{print $NF}'            > changed_content_assets.txt       || true
-          grep -iE "$BASE/digitalExperiences/"               changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_exp_cloud.txt        || true
+          grep "$BASE/lwc/"                             changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_lwc.txt           || true
+          grep "$BASE/aura/"                            changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_aura.txt          || true
+          grep "$BASE/pages/.*\.page$"                  changed_files.txt | sed 's#.*/##;s/\.page$//'          > changed_vf_pages.txt         || true
+          grep "$BASE/components/.*\.component$"        changed_files.txt | sed 's#.*/##;s/\.component$//'     > changed_vf_components.txt    || true
+          grep "$BASE/flexipages/.*\.flexipage$"        changed_files.txt | sed 's#.*/##;s/\.flexipage$//'     > changed_flexipages.txt       || true
+          grep "$BASE/staticresources/"                 changed_files.txt | awk -F'/' '{print $NF}'            > changed_static_resources.txt || true
+          grep "$BASE/contentassets/"                   changed_files.txt | awk -F'/' '{print $NF}'            > changed_content_assets.txt   || true
+          grep "$BASE/digitalExperiences/"              changed_files.txt | awk -F'/' '{print $(NF-1)}' | sort -u > changed_exp_cloud.txt    || true
 
           # ── Object Model ──────────────────────────────────────────────────
-          grep -iE "$BASE/objects/.*\.object-meta\.xml$"     changed_files.txt | sed 's#.*/##;s/\.object-meta\.xml$//'         > changed_objects.txt             || true
-          grep -iE "$BASE/objects/.*/fields/"                changed_files.txt | sed 's#.*/##;s/\.field-meta\.xml$//'          > changed_fields.txt              || true
-          grep -iE "$BASE/objects/.*/validationRules/"       changed_files.txt | sed 's#.*/##;s/\.validationRule-meta\.xml$//' > changed_validation_rules.txt    || true
-          grep -iE "$BASE/objects/.*/recordTypes/"           changed_files.txt | sed 's#.*/##;s/\.recordType-meta\.xml$//'     > changed_record_types.txt        || true
-          grep -iE "$BASE/objects/.*/compactLayouts/"        changed_files.txt | sed 's#.*/##'                                 > changed_compact_layouts.txt     || true
-          grep -iE "$BASE/objects/.*/listViews/"             changed_files.txt | sed 's#.*/##'                                 > changed_list_views.txt          || true
-          grep -iE "$BASE/objects/.*/fieldSets/"             changed_files.txt | sed 's#.*/##'                                 > changed_field_sets.txt          || true
-          grep -iE "$BASE/objects/.*/webLinks/"              changed_files.txt | sed 's#.*/##'                                 > changed_web_links.txt           || true
-          grep -iE "$BASE/objects/.*/businessProcesses/"     changed_files.txt | sed 's#.*/##'                                 > changed_business_processes.txt  || true
-          grep -iE "$BASE/globalValueSets/"                  changed_files.txt | sed 's#.*/##;s/\.globalValueSet-meta\.xml$//' > changed_global_value_sets.txt   || true
-          grep -iE "$BASE/standardValueSets/"                changed_files.txt | sed 's#.*/##;s/\.standardValueSet-meta\.xml$//' > changed_std_value_sets.txt    || true
-          grep -iE "$BASE/customMetadata/"                   changed_files.txt | sed 's#.*/##;s/\.md$//'                       > changed_custom_metadata.txt     || true
+          grep "$BASE/objects/.*\.object-meta\.xml$"    changed_files.txt | sed 's#.*/##;s/\.object-meta\.xml$//'           > changed_objects.txt            || true
+          grep "$BASE/objects/.*/fields/"               changed_files.txt | sed 's#.*/##;s/\.field-meta\.xml$//'            > changed_fields.txt             || true
+          grep "$BASE/objects/.*/validationRules/"      changed_files.txt | sed 's#.*/##;s/\.validationRule-meta\.xml$//'   > changed_validation_rules.txt   || true
+          grep "$BASE/objects/.*/recordTypes/"          changed_files.txt | sed 's#.*/##;s/\.recordType-meta\.xml$//'       > changed_record_types.txt       || true
+          grep "$BASE/objects/.*/compactLayouts/"       changed_files.txt | sed 's#.*/##'                                   > changed_compact_layouts.txt    || true
+          grep "$BASE/objects/.*/listViews/"            changed_files.txt | sed 's#.*/##'                                   > changed_list_views.txt         || true
+          grep "$BASE/objects/.*/fieldSets/"            changed_files.txt | sed 's#.*/##'                                   > changed_field_sets.txt         || true
+          grep "$BASE/objects/.*/webLinks/"             changed_files.txt | sed 's#.*/##'                                   > changed_web_links.txt          || true
+          grep "$BASE/objects/.*/businessProcesses/"    changed_files.txt | sed 's#.*/##'                                   > changed_business_processes.txt || true
+          grep "$BASE/globalValueSets/"                 changed_files.txt | sed 's#.*/##;s/\.globalValueSet-meta\.xml$//'   > changed_global_value_sets.txt  || true
+          grep "$BASE/standardValueSets/"               changed_files.txt | sed 's#.*/##;s/\.standardValueSet-meta\.xml$//' > changed_std_value_sets.txt     || true
+          grep "$BASE/customMetadata/"                  changed_files.txt | sed 's#.*/##;s/\.md$//'                         > changed_custom_metadata.txt    || true
 
           # ── Automation ────────────────────────────────────────────────────
-          grep -iE "$BASE/flows/.*\.flow-meta\.xml$"          changed_files.txt | sed 's#.*/##;s/\.flow-meta\.xml$//'         > changed_flows.txt               || true
-          grep -iE "$BASE/workflows/.*\.workflow-meta\.xml$"  changed_files.txt | sed 's#.*/##;s/\.workflow-meta\.xml$//'     > changed_workflows.txt           || true
-          grep -iE "$BASE/approvalProcesses/"                 changed_files.txt | sed 's#.*/##'                               > changed_approval_processes.txt  || true
-          grep -iE "$BASE/assignmentRules/"                   changed_files.txt | sed 's#.*/##'                               > changed_assignment_rules.txt    || true
-          grep -iE "$BASE/autoResponseRules/"                 changed_files.txt | sed 's#.*/##'                               > changed_auto_response_rules.txt || true
-          grep -iE "$BASE/escalationRules/"                   changed_files.txt | sed 's#.*/##'                               > changed_escalation_rules.txt    || true
-          grep -iE "$BASE/matchingRules/"                     changed_files.txt | sed 's#.*/##'                               > changed_matching_rules.txt      || true
-          grep -iE "$BASE/duplicateRules/"                    changed_files.txt | sed 's#.*/##'                               > changed_duplicate_rules.txt     || true
+          grep "$BASE/flows/.*\.flow-meta\.xml$"         changed_files.txt | sed 's#.*/##;s/\.flow-meta\.xml$//'        > changed_flows.txt               || true
+          grep "$BASE/workflows/.*\.workflow-meta\.xml$" changed_files.txt | sed 's#.*/##;s/\.workflow-meta\.xml$//'    > changed_workflows.txt           || true
+          grep "$BASE/approvalProcesses/"                changed_files.txt | sed 's#.*/##'                              > changed_approval_processes.txt  || true
+          grep "$BASE/assignmentRules/"                  changed_files.txt | sed 's#.*/##'                              > changed_assignment_rules.txt    || true
+          grep "$BASE/autoResponseRules/"                changed_files.txt | sed 's#.*/##'                              > changed_auto_response_rules.txt || true
+          grep "$BASE/escalationRules/"                  changed_files.txt | sed 's#.*/##'                              > changed_escalation_rules.txt    || true
+          grep "$BASE/matchingRules/"                    changed_files.txt | sed 's#.*/##'                              > changed_matching_rules.txt      || true
+          grep "$BASE/duplicateRules/"                   changed_files.txt | sed 's#.*/##'                              > changed_duplicate_rules.txt     || true
 
           # ── Security & Access ─────────────────────────────────────────────
-          grep -iE "$BASE/profiles/.*\.profile-meta\.xml$"              changed_files.txt | sed 's#.*/##;s/\.profile-meta\.xml$//'          > changed_profiles.txt          || true
-          grep -iE "$BASE/permissionsets/.*\.permissionset-meta\.xml$"  changed_files.txt | sed 's#.*/##;s/\.permissionset-meta\.xml$//'    > changed_permission_sets.txt   || true
-          grep -iE "$BASE/permissionsetgroups/"                         changed_files.txt | sed 's#.*/##'                                   > changed_perm_set_groups.txt   || true
-          grep -iE "$BASE/roles/.*\.role-meta\.xml$"                    changed_files.txt | sed 's#.*/##;s/\.role-meta\.xml$//'             > changed_roles.txt             || true
-          grep -iE "$BASE/sharingRules/"                                changed_files.txt | sed 's#.*/##'                                   > changed_sharing_rules.txt     || true
-          grep -iE "$BASE/customPermissions/"                           changed_files.txt | sed 's#.*/##;s/\.customPermission-meta\.xml$//' > changed_custom_permissions.txt || true
-          grep -iE "$BASE/mutingpermissionsets/"                        changed_files.txt | sed 's#.*/##'                                   > changed_muting_perm_sets.txt  || true
+          grep "$BASE/profiles/.*\.profile-meta\.xml$"             changed_files.txt | sed 's#.*/##;s/\.profile-meta\.xml$//'          > changed_profiles.txt           || true
+          grep "$BASE/permissionsets/.*\.permissionset-meta\.xml$" changed_files.txt | sed 's#.*/##;s/\.permissionset-meta\.xml$//'    > changed_permission_sets.txt    || true
+          grep "$BASE/permissionsetgroups/"                        changed_files.txt | sed 's#.*/##'                                   > changed_perm_set_groups.txt    || true
+          grep "$BASE/roles/.*\.role-meta\.xml$"                   changed_files.txt | sed 's#.*/##;s/\.role-meta\.xml$//'             > changed_roles.txt              || true
+          grep "$BASE/sharingRules/"                               changed_files.txt | sed 's#.*/##'                                   > changed_sharing_rules.txt      || true
+          grep "$BASE/customPermissions/"                          changed_files.txt | sed 's#.*/##;s/\.customPermission-meta\.xml$//' > changed_custom_permissions.txt || true
+          grep "$BASE/mutingpermissionsets/"                       changed_files.txt | sed 's#.*/##'                                   > changed_muting_perm_sets.txt   || true
 
           # ── App Config ────────────────────────────────────────────────────
-          grep -iE "$BASE/applications/.*\.app-meta\.xml$"           changed_files.txt | sed 's#.*/##;s/\.app-meta\.xml$//'          > changed_apps.txt                   || true
-          grep -iE "$BASE/tabs/.*\.tab-meta\.xml$"                   changed_files.txt | sed 's#.*/##;s/\.tab-meta\.xml$//'          > changed_tabs.txt                   || true
-          grep -iE "$BASE/layouts/.*\.layout-meta\.xml$"             changed_files.txt | sed 's#.*/##;s/\.layout-meta\.xml$//'       > changed_layouts.txt                || true
-          grep -iE "$BASE/quickActions/.*\.quickAction-meta\.xml$"   changed_files.txt | sed 's#.*/##;s/\.quickAction-meta\.xml$//' > changed_quick_actions.txt          || true
-          grep -iE "$BASE/globalActions/"                            changed_files.txt | sed 's#.*/##'                               > changed_global_actions.txt         || true
-          grep -iE "$BASE/pathAssistants/"                           changed_files.txt | sed 's#.*/##'                               > changed_path_assistants.txt        || true
-          grep -iE "$BASE/compactLayouts/"                           changed_files.txt | sed 's#.*/##'                               > changed_global_compact_layouts.txt || true
+          grep "$BASE/applications/.*\.app-meta\.xml$"          changed_files.txt | sed 's#.*/##;s/\.app-meta\.xml$//'         > changed_apps.txt                   || true
+          grep "$BASE/tabs/.*\.tab-meta\.xml$"                   changed_files.txt | sed 's#.*/##;s/\.tab-meta\.xml$//'         > changed_tabs.txt                   || true
+          grep "$BASE/layouts/.*\.layout-meta\.xml$"             changed_files.txt | sed 's#.*/##;s/\.layout-meta\.xml$//'      > changed_layouts.txt                || true
+          grep "$BASE/quickActions/.*\.quickAction-meta\.xml$"   changed_files.txt | sed 's#.*/##;s/\.quickAction-meta\.xml$//' > changed_quick_actions.txt          || true
+          grep "$BASE/globalActions/"                            changed_files.txt | sed 's#.*/##'                              > changed_global_actions.txt         || true
+          grep "$BASE/pathAssistants/"                           changed_files.txt | sed 's#.*/##'                              > changed_path_assistants.txt        || true
+          grep "$BASE/compactLayouts/"                           changed_files.txt | sed 's#.*/##'                              > changed_global_compact_layouts.txt || true
 
           # ── Integration ───────────────────────────────────────────────────
-          grep -iE "$BASE/namedCredentials/"      changed_files.txt | sed 's#.*/##' > changed_named_credentials.txt    || true
-          grep -iE "$BASE/remoteSiteSettings/"    changed_files.txt | sed 's#.*/##' > changed_remote_sites.txt         || true
-          grep -iE "$BASE/connectedApps/"         changed_files.txt | sed 's#.*/##' > changed_connected_apps.txt       || true
-          grep -iE "$BASE/cspTrustedSites/"       changed_files.txt | sed 's#.*/##' > changed_csp_trusted_sites.txt    || true
-          grep -iE "$BASE/platformEventChannels/" changed_files.txt | sed 's#.*/##' > changed_platform_events.txt      || true
-          grep -iE "$BASE/externalDataSources/"   changed_files.txt | sed 's#.*/##' > changed_external_datasources.txt || true
-          grep -iE "$BASE/externalServices/"      changed_files.txt | sed 's#.*/##' > changed_external_services.txt    || true
+          grep "$BASE/namedCredentials/"      changed_files.txt | sed 's#.*/##' > changed_named_credentials.txt    || true
+          grep "$BASE/remoteSiteSettings/"    changed_files.txt | sed 's#.*/##' > changed_remote_sites.txt         || true
+          grep "$BASE/connectedApps/"         changed_files.txt | sed 's#.*/##' > changed_connected_apps.txt       || true
+          grep "$BASE/cspTrustedSites/"       changed_files.txt | sed 's#.*/##' > changed_csp_trusted_sites.txt    || true
+          grep "$BASE/platformEventChannels/" changed_files.txt | sed 's#.*/##' > changed_platform_events.txt      || true
+          grep "$BASE/externalDataSources/"   changed_files.txt | sed 's#.*/##' > changed_external_datasources.txt || true
+          grep "$BASE/externalServices/"      changed_files.txt | sed 's#.*/##' > changed_external_services.txt    || true
 
           # ── Content & Communication ───────────────────────────────────────
-          grep -iE "$BASE/email/"          changed_files.txt | sed 's#.*/##'                                > changed_email_templates.txt    || true
-          grep -iE "$BASE/reports/"        changed_files.txt | awk -F'/' '{print $(NF-1)"/"$NF}' | sort -u > changed_reports.txt            || true
-          grep -iE "$BASE/dashboards/"     changed_files.txt | awk -F'/' '{print $(NF-1)"/"$NF}' | sort -u > changed_dashboards.txt         || true
-          grep -iE "$BASE/documents/"      changed_files.txt | sed 's#.*/##'                                > changed_documents.txt          || true
-          grep -iE "$BASE/labels/.*\.labels-meta\.xml$" changed_files.txt | sed 's#.*/##'                  > changed_labels.txt             || true
-          grep -iE "$BASE/notificationtypes/" changed_files.txt | sed 's#.*/##'                             > changed_notification_types.txt || true
-          grep -iE "$BASE/notifTypes/"     changed_files.txt | sed 's#.*/##'                                > changed_notif_types.txt        || true
+          grep "$BASE/email/"                           changed_files.txt | sed 's#.*/##'                                > changed_email_templates.txt    || true
+          grep "$BASE/reports/"                         changed_files.txt | awk -F'/' '{print $(NF-1)"/"$NF}' | sort -u > changed_reports.txt            || true
+          grep "$BASE/dashboards/"                      changed_files.txt | awk -F'/' '{print $(NF-1)"/"$NF}' | sort -u > changed_dashboards.txt         || true
+          grep "$BASE/documents/"                       changed_files.txt | sed 's#.*/##'                                > changed_documents.txt          || true
+          grep "$BASE/labels/.*\.labels-meta\.xml$"     changed_files.txt | sed 's#.*/##'                                > changed_labels.txt             || true
+          grep "$BASE/notificationtypes/"               changed_files.txt | sed 's#.*/##'                                > changed_notification_types.txt || true
+          grep "$BASE/notifTypes/"                      changed_files.txt | sed 's#.*/##'                                > changed_notif_types.txt        || true
 
           # ── Territory & Queue ─────────────────────────────────────────────
-          grep -iE "$BASE/territories/" changed_files.txt | sed 's#.*/##' > changed_territories.txt || true
-          grep -iE "$BASE/queues/"      changed_files.txt | sed 's#.*/##' > changed_queues.txt      || true
-          grep -iE "$BASE/groups/"      changed_files.txt | sed 's#.*/##' > changed_groups.txt      || true
+          grep "$BASE/territories/" changed_files.txt | sed 's#.*/##' > changed_territories.txt || true
+          grep "$BASE/queues/"      changed_files.txt | sed 's#.*/##' > changed_queues.txt      || true
+          grep "$BASE/groups/"      changed_files.txt | sed 's#.*/##' > changed_groups.txt      || true
 
           # ── Settings & Org-wide ───────────────────────────────────────────
-          grep -iE "$BASE/settings/.*\.settings-meta\.xml$" changed_files.txt | sed 's#.*/##' > changed_settings.txt             || true
-          grep -iE "$BASE/translations/"                    changed_files.txt | sed 's#.*/##' > changed_translations.txt         || true
-          grep -iE "$BASE/objectTranslations/"              changed_files.txt | sed 's#.*/##' > changed_object_translations.txt  || true
+          grep "$BASE/settings/.*\.settings-meta\.xml$" changed_files.txt | sed 's#.*/##' > changed_settings.txt            || true
+          grep "$BASE/translations/"                    changed_files.txt | sed 's#.*/##' > changed_translations.txt        || true
+          grep "$BASE/objectTranslations/"              changed_files.txt | sed 's#.*/##' > changed_object_translations.txt || true
 
           # ── OmniStudio ────────────────────────────────────────────────────
-          grep -iE "$BASE/omniIntegrationProcedures/" changed_files.txt | sed 's#.*/##' > changed_omni_integrations.txt    || true
-          grep -iE "$BASE/omniUiCard/"                changed_files.txt | sed 's#.*/##' > changed_omni_ui_cards.txt        || true
-          grep -iE "$BASE/omniDataTransform/"         changed_files.txt | sed 's#.*/##' > changed_omni_data_transforms.txt || true
+          grep "$BASE/omniIntegrationProcedures/" changed_files.txt | sed 's#.*/##' > changed_omni_integrations.txt    || true
+          grep "$BASE/omniUiCard/"                changed_files.txt | sed 's#.*/##' > changed_omni_ui_cards.txt        || true
+          grep "$BASE/omniDataTransform/"         changed_files.txt | sed 's#.*/##' > changed_omni_data_transforms.txt || true
 
+          # ── Summary (FIX: use if/fi instead of && to avoid exit code 1) ──
           echo "=== Metadata delta summary ==="
           for f in changed_*.txt; do
             if [ -f "$f" ]; then
               COUNT=$(wc -l < "$f" 2>/dev/null | tr -d ' ')
               COUNT=${COUNT:-0}
-              [ "$COUNT" -gt 0 ] && echo "  $f: $COUNT item(s)"
+              if [ "$COUNT" -gt 0 ]; then
+                echo "  $f: $COUNT item(s)"
+              fi
             fi
           done
+
+          exit 0  # FIX: always exit cleanly regardless of last command result
 
       # ------------------------------------------
       # Identify Test Classes
@@ -413,16 +435,4 @@ jobs:
           git pull origin release || true
           git push origin release
 
-      # ------------------------------------------
-      # PR to Master
-      # ------------------------------------------
-      - name: Create PR to Master
-        if: success()
-        run: |
-          gh pr create \
-            --base master \
-            --head release \
-            --title "Release → Master Promotion" \
-            --body "Validated changes ready for production"
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+  
