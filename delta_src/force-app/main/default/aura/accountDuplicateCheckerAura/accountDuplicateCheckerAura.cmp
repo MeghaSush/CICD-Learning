@@ -1,0 +1,3 @@
+<aura:component implements="force:lightningQuickAction">
+    <c-account-duplicate-checker></c-account-duplicate-checker>
+</aura:component>
