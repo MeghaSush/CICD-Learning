@@ -1,0 +1,143 @@
+<template>
+    <lightning-card title="Create New Account" icon-name="standard:account">
+        <div class="slds-p-around_medium">
+            <!-- Account Form -->
+            <lightning-layout multiple-rows>
+                <lightning-layout-item size="12" padding="around-small">
+                    <lightning-input
+                        label="Account Name"
+                        value={accountName}
+                        onchange={handleAccountNameChange}
+                        required
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" small-device-size="6" padding="around-small">
+                    <lightning-input
+                        label="Billing Street"
+                        value={billingStreet}
+                        onchange={handleFieldChange}
+                        data-field="billingStreet"
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" small-device-size="6" padding="around-small">
+                    <lightning-input
+                        label="Billing City"
+                        value={billingCity}
+                        onchange={handleFieldChange}
+                        data-field="billingCity"
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" small-device-size="6" padding="around-small">
+                    <lightning-input
+                        label="Billing State"
+                        value={billingState}
+                        onchange={handleFieldChange}
+                        data-field="billingState"
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" small-device-size="6" padding="around-small">
+                    <lightning-input
+                        label="Billing Postal Code"
+                        value={billingPostalCode}
+                        onchange={handlePostalCodeChange}
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" small-device-size="6" padding="around-small">
+                    <lightning-input
+                        label="Billing Country"
+                        value={billingCountry}
+                        onchange={handleFieldChange}
+                        data-field="billingCountry"
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" small-device-size="6" padding="around-small">
+                    <lightning-input
+                        label="Phone"
+                        value={phone}
+                        onchange={handleFieldChange}
+                        data-field="phone"
+                        type="tel"
+                    ></lightning-input>
+                </lightning-layout-item>
+
+                <lightning-layout-item size="12" padding="around-small">
+                    <lightning-input
+                        label="Website"
+                        value={website}
+                        onchange={handleFieldChange}
+                        data-field="website"
+                        type="url"
+                    ></lightning-input>
+                </lightning-layout-item>
+            </lightning-layout>
+
+            <!-- Check Duplicates Button -->
+            <div class="slds-m-top_medium">
+                <lightning-button
+                    label="Check for Duplicates"
+                    onclick={handleCheckDuplicates}
+                    variant="neutral"
+                    class="slds-m-right_small"
+                ></lightning-button>
+            </div>
+
+            <!-- Duplicate Results -->
+            <template if:true={showDuplicates}>
+                <div class="slds-m-top_medium">
+                    <template if:true={hasDuplicates}>
+                        <div class="slds-box slds-theme_warning slds-m-bottom_medium">
+                            <p class="slds-text-heading_small">
+                                <lightning-icon icon-name="utility:warning" size="small" class="slds-m-right_x-small"></lightning-icon>
+                                Potential duplicate accounts found!
+                            </p>
+                        </div>
+
+                        <lightning-datatable
+                            key-field="Id"
+                            data={duplicates}
+                            columns={columns}
+                            hide-checkbox-column
+                            onrowaction={handleRowAction}
+                        ></lightning-datatable>
+                    </template>
+
+                    <template if:false={hasDuplicates}>
+                        <div class="slds-box slds-theme_success slds-m-bottom_medium">
+                            <p class="slds-text-heading_small">
+                                <lightning-icon icon-name="utility:success" size="small" class="slds-m-right_x-small"></lightning-icon>
+                                No duplicates found. You can proceed with creating the account.
+                            </p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <!-- Action Buttons -->
+            <div class="slds-m-top_medium">
+                <lightning-button
+                    label="Save"
+                    onclick={handleSave}
+                    variant="brand"
+                    class="slds-m-right_small"
+                    disabled={isSaving}
+                ></lightning-button>
+                <lightning-button
+                    label="Cancel"
+                    onclick={handleCancel}
+                    variant="neutral"
+                ></lightning-button>
+            </div>
+
+            <!-- Spinner -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading..."></lightning-spinner>
+            </template>
+        </div>
+    </lightning-card>
+</template>
