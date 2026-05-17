@@ -6,9 +6,10 @@
         <target>lightning__AppPage</target>
         <target>lightning__RecordPage</target>
         <target>lightning__HomePage</target>
+        <target>lightningCommunity__Page</target>
     </targets>
     <targetConfigs>
-        <targetConfig targets="lightning__AppPage,lightning__HomePage,lightning__RecordPage">
+        <targetConfig targets="lightning__AppPage,lightning__HomePage,lightning__RecordPage,lightningCommunity__Page">
             <supportedFormFactors>
                 <supportedFormFactor type="Small"/>
                 <supportedFormFactor type="Large"/>
