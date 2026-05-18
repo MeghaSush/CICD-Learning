@@ -310,10 +310,10 @@ jobs:
             exit 0
           fi
 
-          # ── Tier 3: No validation rules, no code/UI → NoTestRun ───────────
-          echo "No code, UI, or validation rule changes → NoTestRun (metadata-only deployment)"
-          echo "test-level=NoTestRun" >> $GITHUB_OUTPUT
-          echo "tests="              >> $GITHUB_OUTPUT
+          # ── Tier 3: No validation rules, no code/UI → metadata-only ─────────
+          echo "No code, UI, or validation rule changes → metadata-only deployment (no test level flag)"
+          echo "test-level=MetadataOnly" >> $GITHUB_OUTPUT
+          echo "tests="                 >> $GITHUB_OUTPUT
 
       # ------------------------------------------
       # Build Delta Source
@@ -434,11 +434,12 @@ jobs:
               --wait 30
 
           else
-            # NoTestRun — pure metadata deployment (no code, no UI, no validation rules)
+            # Metadata-only deployment (no code, no UI, no validation rules)
+            # --test-level is intentionally omitted; validate will use org default
+            # (sandbox: no tests required when no Apex is present in the delta)
             sf project deploy validate \
               --metadata-dir delta_mdapi \
               --target-org uat-org \
-              --test-level NoTestRun \
               --wait 30
           fi
 
