@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Customer_Reference_Number__c</fullName>
+    <label>Customer Reference Number</label>
+    <description>Unique reference number assigned to the customer for tracking and identification purposes</description>
+    <inlineHelpText>Enter the unique reference number provided by the customer. This is used for cross-referencing with external systems.</inlineHelpText>
+    <type>Text</type>
+    <length>80</length>
+    <required>false</required>
+    <unique>false</unique>
+    <externalId>true</externalId>
+</CustomField>

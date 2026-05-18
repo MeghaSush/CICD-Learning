@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Test_Account__c</fullName>
+    <label>Test Account</label>
+    <description>To identify Accounts created for Testing Purpose</description>
+    <inlineHelpText>Check this box to mark this account as a test account created for testing purposes. This field cannot be modified after the account is created.</inlineHelpText>
+    <type>Checkbox</type>
+    <defaultValue>false</defaultValue>
+</CustomField>
