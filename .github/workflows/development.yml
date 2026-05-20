@@ -209,22 +209,17 @@ jobs:
       # ------------------------------------------
       # Determine Test Strategy and Map Tests
       # ------------------------------------------
-      # Decision tree:
-      #  1. Validation rules changed?
-      #       → RunLocalTests (immediate, no further checks)
-      #  2. Code or UI components changed?
-      #       → Find @isTest classes within the changed files only
-      #         a. @isTest classes found in changeset → RunSpecifiedTests
-      #         b. No @isTest classes in changeset    → RunLocalTests
-      #  3. No code, no UI, no validation rules changed?
-      #       → RunLocalTests (safe default)
+      # Tier 1 → Validation rules in delta       : RunLocalTests
+      # Tier 2 → Code or UI components in delta  : RunSpecifiedTests
+      #          (uses only @isTest classes found inside the delta itself)
+      # Tier 3 → Nothing above found             : default validate (no --test-level)
       # ------------------------------------------
       - name: Determine Test Strategy and Map Tests
         id: testmapping
         run: |
           > selected_tests.txt
 
-          # ── Tier 1: Validation rules → RunLocalTests immediately ──────────
+          # ── Tier 1: Validation rules present → RunLocalTests ──────────────
           if [ -s changed_validation_rules.txt ]; then
             echo "Validation rules changed → RunLocalTests"
             echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
@@ -232,7 +227,7 @@ jobs:
             exit 0
           fi
 
-          # ── Tier 2: Code or UI components changed ─────────────────────────
+          # ── Tier 2: Code or UI components present ─────────────────────────
           CODE_UI_FILES=(
             changed_classes.txt
             changed_triggers.txt
@@ -252,10 +247,10 @@ jobs:
           done
 
           if [ "$HAS_CODE_UI" = "true" ]; then
-            echo "Code/UI components changed → identifying @isTest classes in changed files"
+            echo "Code/UI components changed → identifying test classes in delta"
 
-            # Scan only the changed .cls files for @isTest annotation
-            # We do NOT scan all repo test classes — only what is in this delta
+            # Scan only the changed .cls files in this delta for @isTest
+            # No repo-wide scan — only what was pushed in this commit
             while read classname; do
               FILE="force-app/main/default/classes/${classname}.cls"
               [ -f "$FILE" ] || continue
@@ -268,21 +263,21 @@ jobs:
             TESTS=$(paste -sd ',' final_tests.txt)
 
             if [ -n "$TESTS" ]; then
-              echo "Test classes found in changeset → RunSpecifiedTests: $TESTS"
+              echo "Test classes found in delta → RunSpecifiedTests: $TESTS"
               echo "test-level=RunSpecifiedTests" >> $GITHUB_OUTPUT
               echo "tests=$TESTS"                >> $GITHUB_OUTPUT
             else
-              echo "No @isTest classes in changeset → RunLocalTests"
+              echo "No @isTest classes in delta → RunLocalTests"
               echo "test-level=RunLocalTests"    >> $GITHUB_OUTPUT
               echo "tests="                      >> $GITHUB_OUTPUT
             fi
             exit 0
           fi
 
-          # ── Tier 3: No code, no UI, no validation rules → RunLocalTests ──
-          echo "No code, UI, or validation rule changes → RunLocalTests (safe default)"
-          echo "test-level=RunLocalTests" >> $GITHUB_OUTPUT
-          echo "tests="                  >> $GITHUB_OUTPUT
+          # ── Tier 3: No VR, no code, no UI → default validate ──────────────
+          echo "No validation rules, code, or UI changes → default validate deployment"
+          echo "test-level=MetadataOnly" >> $GITHUB_OUTPUT
+          echo "tests="                 >> $GITHUB_OUTPUT
 
       # ------------------------------------------
       # Build Delta Source
@@ -382,23 +377,33 @@ jobs:
           TEST_LEVEL="${{ steps.testmapping.outputs.test-level }}"
           TESTS="${{ steps.testmapping.outputs.tests }}"
 
-          echo "Test level: $TEST_LEVEL"
-          echo "Tests     : ${TESTS:-n/a}"
+          echo "Test level : $TEST_LEVEL"
+          echo "Tests      : ${TESTS:-n/a}"
 
           if [ "$TEST_LEVEL" == "RunSpecifiedTests" ] && [ -n "$TESTS" ]; then
-            # @isTest classes found in the changed files
+            # Tier 2a: @isTest classes found in the changed files
             sf project deploy validate \
               --metadata-dir delta_mdapi \
               --target-org uat-org \
               --test-level RunSpecifiedTests \
               --tests "$TESTS" \
               --wait 30
-          else
-            # Validation rules changed, no @isTest in changeset, or metadata-only delta
+
+          elif [ "$TEST_LEVEL" == "RunLocalTests" ]; then
+            # Tier 1: Validation rules changed
+            # Tier 2b: Code/UI changed but no @isTest classes in the changeset
             sf project deploy validate \
               --metadata-dir delta_mdapi \
               --target-org uat-org \
               --test-level RunLocalTests \
+              --wait 30
+
+          else
+            # Tier 3: MetadataOnly — no code, no UI, no validation rules
+            # --test-level intentionally omitted; org default applies
+            sf project deploy validate \
+              --metadata-dir delta_mdapi \
+              --target-org uat-org \
               --wait 30
           fi
 
@@ -411,5 +416,3 @@ jobs:
           git checkout release
           git pull origin release || true
           git push origin release
-
-
